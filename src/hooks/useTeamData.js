@@ -98,14 +98,7 @@ export function useTeamData(session) {
   const saveWindow = async (windowData) => {
     const isNew = !windowData.id || String(windowData.id).startsWith('my-')
     // Strip client-only fields and ensure snake_case for DB
-    const { id: _id, player: _p, startTime: _st, endTime: _et, matchType: _mt, ...rest } = windowData
-    // Ensure snake_case fields (form uses snake_case but guard against camelCase leaking in)
-    const dbRow = {
-      ...rest,
-      start_time: windowData.start_time || windowData.startTime,
-      end_time: windowData.end_time || windowData.endTime,
-      match_type: windowData.match_type || windowData.matchType,
-    }
+    const { id: _id, player: _p, created_at: _ca, ...dbRow } = windowData
     if (isNew) {
       const { data, error } = await supabase.from('availability_windows')
         .insert({ ...dbRow, player_id: userId }).select('*, player:players(id,name,ntrp,email,phone)').single()

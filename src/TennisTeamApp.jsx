@@ -37,17 +37,17 @@ function generateICS(items){
     let start,end;
     if(item.date){
       const d=new Date(item.date);
-      if(item.startTime){const[h,m]=item.startTime.split(':');d.setHours(parseInt(h),parseInt(m),0);}
+      if(item.start_time){const[h,m]=item.start_time.split(':');d.setHours(parseInt(h),parseInt(m),0);}
       start=new Date(d);end=new Date(d);
-      if(item.endTime){const[h,m]=item.endTime.split(':');end.setHours(parseInt(h),parseInt(m),0);}
+      if(item.end_time){const[h,m]=item.end_time.split(':');end.setHours(parseInt(h),parseInt(m),0);}
       else{end.setHours(end.getHours()+2);}
     } else {
       const dayIdx=DAY_ORDER.indexOf(item.day);
       const today=new Date();const diff=(dayIdx-today.getDay()+7)%7||7;
       start=new Date(today);start.setDate(today.getDate()+diff);
-      if(item.startTime){const[h,m]=item.startTime.split(':');start.setHours(parseInt(h),parseInt(m),0);}
+      if(item.start_time){const[h,m]=item.start_time.split(':');start.setHours(parseInt(h),parseInt(m),0);}
       end=new Date(start);
-      if(item.endTime){const[h,m]=item.endTime.split(':');end.setHours(parseInt(h),parseInt(m),0);}
+      if(item.end_time){const[h,m]=item.end_time.split(':');end.setHours(parseInt(h),parseInt(m),0);}
       else{end.setHours(end.getHours()+2);}
     }
     const fmt=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}00`;
@@ -125,7 +125,7 @@ function PlayerEditModal({player,onSave,onClose,isNew}){
 }
 
 function WindowFormModal({window:win,onSave,onClose,currentUser}){
-  const[form,setForm]=useState(win?{...win,start_time:win.start_time||win.startTime||'',end_time:win.end_time||win.endTime||''}:{day:'Saturday',start_time:'',end_time:'',type:'match',match_type:'singles',ntrp_min:'',ntrp_max:'',practice_spots:2,lesson_instructor:'',lesson_spots:1,clinic_title:'',clinic_instructor:'',clinic_spots:4});
+  const[form,setForm]=useState(win?{...win,start_time:win.start_time||'',end_time:win.end_time||''}:{day:'Saturday',start_time:'',end_time:'',type:'match',match_type:'singles',ntrp_min:'',ntrp_max:'',practice_spots:2,lesson_instructor:'',lesson_spots:1,clinic_title:'',clinic_instructor:'',clinic_spots:4});
   const save=()=>{if(!form.day||!form.start_time||!form.end_time){alert('Please fill in day and times.');return;}if(timeToMinutes(form.end_time)<=timeToMinutes(form.start_time)){alert('End time must be after start time.');return;}onSave(form);};
   return(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -277,8 +277,8 @@ export default function TennisTeamApp({ session, onSignOut }) {
 
   const calculateOverlap = (w1, w2) => {
     if (w1.day !== w2.day) return 0;
-    const s = Math.max(timeToMinutes(w1.start_time || w1.startTime), timeToMinutes(w2.start_time || w2.startTime));
-    const e = Math.min(timeToMinutes(w1.end_time || w1.endTime), timeToMinutes(w2.end_time || w2.endTime));
+    const s = Math.max(timeToMinutes(w1.start_time), timeToMinutes(w2.start_time));
+    const e = Math.min(timeToMinutes(w1.end_time), timeToMinutes(w2.end_time));
     return Math.max(0, (e - s) / 60);
   };
 
@@ -304,10 +304,10 @@ export default function TennisTeamApp({ session, onSignOut }) {
     setJoinModal(null);
   };
 
-  const handleWithdraw = (windowId, sessionLabel, participantPlayers, isFull) => setWithdrawModal({ windowId, sessionLabel, players: participantPlayers, isFull });
+  const handleWithdraw = (windowId, sessionLabel, participantPlayers, isFull) => setWithdrawModal({ window_id: windowId, sessionLabel, players: participantPlayers, isFull });
   const confirmWithdraw = (notifyMethod) => {
     if (!withdrawModal) return;
-    leaveSession(withdrawModal.windowId);
+    leaveSession(withdrawModal.window_id);
     if (notifyMethod === 'email' && withdrawModal.players.length > 0) window.location.href = 'mailto:' + withdrawModal.players.map(p => p.email).filter(Boolean).join(',');
     else if (notifyMethod === 'text' && withdrawModal.players.length > 0) {
       const nums = withdrawModal.players.map(p => (p.phone || '').replace(/\D/g, '')).filter(Boolean);
@@ -396,7 +396,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
     if (item.type === 'league') {
       return players.filter(p => selectedIds.includes(p.id) && p.id !== userId);
     }
-    const windowJoins = joins.filter(j => j.window_id === item.windowId);
+    const windowJoins = joins.filter(j => j.window_id === item.window_id);
     return players.filter(p => windowJoins.some(j => j.player_id === p.id) && p.id !== userId);
   };
 
@@ -413,23 +413,23 @@ export default function TennisTeamApp({ session, onSignOut }) {
         const isAlt = desigs.some(d => d.player_id === userId && d.designation === 'alternate');
         const isOut = desigs.some(d => d.player_id === userId && d.designation === 'notThisWeek');
         const status = isSel ? 'Selected' : isAlt ? 'Alternate' : isOut ? 'Not This Week' : 'Pending';
-        items.push({ type: 'league', label: 'League Match', detail: det.subtitle, date: SATURDAYS[i], day: 'Saturday', startTime: det.start_time, endTime: det.end_time, address: formatAddress(det), status, weekStart: ws });
+        items.push({ type: 'league', label: 'League Match', detail: det.subtitle, date: SATURDAYS[i], day: 'Saturday', start_time: det.start_time, end_time: det.end_time, address: formatAddress(det), status, week_start: ws });
       }
     }
     myWindows.forEach(w => {
       const info = getSlotsInfo(w);
-      items.push({ type: w.type, label: getTypeLabel(w.type) + ' (Open Request)', day: w.day, startTime: w.start_time, endTime: w.end_time, joinedPlayers: joins.filter(j => j.window_id === w.id), info, date: null, windowId: w.id });
+      items.push({ type: w.type, label: getTypeLabel(w.type) + ' (Open Request)', day: w.day, start_time: w.start_time, end_time: w.end_time, joinedPlayers: joins.filter(j => j.window_id === w.id), info, date: null, window_id: w.id });
     });
     joins.filter(j => j.player_id === userId).forEach(j => {
       const w = allWindows.find(w => w.id === j.window_id);
       if (w) {
         const info = getSlotsInfo(w);
-        items.push({ type: w.type, label: getTypeLabel(w.type) + ' with ' + (w.player?.name || ''), day: w.day, startTime: j.join_start_time, endTime: j.join_end_time, info, status: info?.filled ? 'Confirmed' : 'Pending', date: null, windowId: w.id });
+        items.push({ type: w.type, label: getTypeLabel(w.type) + ' with ' + (w.player?.name || ''), day: w.day, start_time: j.join_start_time, end_time: j.join_end_time, info, status: info?.filled ? 'Confirmed' : 'Pending', date: null, window_id: w.id });
       }
     });
     return items.sort((a, b) => {
-      const aMs = a.date ? a.date.getTime() : (Date.now() + DAY_ORDER.indexOf(a.day) * 10000000 + timeToMinutes(a.startTime || '08:00') * 60000);
-      const bMs = b.date ? b.date.getTime() : (Date.now() + DAY_ORDER.indexOf(b.day) * 10000000 + timeToMinutes(b.startTime || '08:00') * 60000);
+      const aMs = a.date ? a.date.getTime() : (Date.now() + DAY_ORDER.indexOf(a.day) * 10000000 + timeToMinutes(a.start_time || '08:00') * 60000);
+      const bMs = b.date ? b.date.getTime() : (Date.now() + DAY_ORDER.indexOf(b.day) * 10000000 + timeToMinutes(b.start_time || '08:00') * 60000);
       return aMs - bMs;
     });
   };
@@ -764,7 +764,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                           <div className={`font-semibold ${isAlt ? 'text-gray-500' : isOut ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</div>
                           {item.detail && <div className={`text-sm font-medium ${isAlt ? 'text-orange-400 italic' : 'text-orange-600'}`}>{item.detail}</div>}
                           <div className={`text-sm mt-0.5 ${isAlt ? 'text-gray-400 italic' : 'text-gray-500'}`}>
-                            {item.date ? formatShortDate(item.date) + ' · ' : ''}{item.day}{item.startTime ? ' · ' + formatTime(item.startTime) + ' – ' + formatTime(item.endTime) : ''}
+                            {item.date ? formatShortDate(item.date) + ' · ' : ''}{item.day}{item.start_time ? ' · ' + formatTime(item.start_time) + ' – ' + formatTime(item.end_time) : ''}
                           </div>
                           {item.address && <a href={mapsLink({ street: item.address, city: '', state: '', zip: '' })} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={`text-xs mt-0.5 flex items-center gap-1 underline ${isAlt ? 'text-gray-400 italic' : 'text-blue-500'}`}><MapPin size={11} />{item.address}</a>}
                           {canExpand && <div className={`text-xs mt-1 ${isAlt ? 'text-gray-400' : 'text-indigo-400'}`}>{isExpanded ? '▲ Hide' : '▼ Who\'s in'}</div>}
@@ -775,7 +775,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                           <button onClick={() => window.location.href = 'mailto:' + participants.map(p => p.email).join(',')} className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100"><Mail size={12} /> Email Group</button>
                           <button onClick={() => { if (participants.length === 1) window.location.href = 'sms:+1' + participants[0].phone.replace(/\D/g, ''); else setSmsModal({ numbers: participants.map(p => p.phone.replace(/\D/g, '')), names: participants.map(p => p.name) }); }} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium hover:bg-green-100"><MessageSquare size={12} /> Text Group</button>
                         </>)}
-                        {item.windowId && <button onClick={() => handleWithdraw(item.windowId, item.label, participants, isFull)} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"><LogOut size={12} /> Withdraw</button>}
+                        {item.window_id && <button onClick={() => handleWithdraw(item.window_id, item.label, participants, isFull)} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"><LogOut size={12} /> Withdraw</button>}
                       </div>
                       {isExpanded && canExpand && (
                         <div className="px-4 pb-4 border-t border-gray-100 pt-3">
