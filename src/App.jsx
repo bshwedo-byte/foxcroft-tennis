@@ -55,6 +55,8 @@ function LoginScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [ntrp, setNtrp] = useState('3.5')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState('login') // 'login' | 'signup' | 'forgot'
@@ -73,7 +75,7 @@ function LoginScreen() {
     setLoading(true); setError('')
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { name } }
+      options: { data: { name, phone, ntrp } }
     })
     if (error) { setError(error.message); setLoading(false); return }
     setSuccessMsg('Account created! You can now sign in.')
@@ -146,6 +148,28 @@ function LoginScreen() {
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="you@email.com" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="(704) 555-1234" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                NTRP Rating
+                <a href="https://www.usta.com/content/dam/usta/pdfs/10013_experience_player_ntrp_characteristics1%20(2).pdf"
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-green-600 hover:text-green-800 underline text-xs font-normal ml-1">
+                  What's my rating?
+                </a>
+              </label>
+              <select value={ntrp} onChange={e => setNtrp(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                {['2.5','3.0','3.5','4.0','4.5','5.0','5.5'].map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
