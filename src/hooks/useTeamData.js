@@ -74,26 +74,26 @@ export function useTeamData(session) {
         supabase.from('responses').select('*').eq('team_id', tid)
           .then(({ data, error }) => {
             console.log('[rt] responses fetch:', data?.length, 'rows, error:', error?.message)
-            if (data) setResponses(data)
+            if (data) setResponses([...data])
           })
       } else if (table === 'designations') {
         supabase.from('designations').select('*').eq('team_id', tid)
-          .then(({ data }) => { if (data) setDesignations(data) })
+          .then(({ data }) => { if (data) setDesignations([...data]) })
       } else if (table === 'week_details') {
         supabase.from('week_details').select('*').eq('team_id', tid)
-          .then(({ data }) => { if (data) setWeekDetails(data) })
+          .then(({ data }) => { if (data) setWeekDetails([...data]) })
       } else if (table === 'session_joins') {
         supabase.from('session_joins').select('*, player:players(id,name,ntrp,email,phone)')
-          .then(({ data }) => { if (data) setJoins(data) })
+          .then(({ data }) => { if (data) setJoins([...data]) })
       } else if (table === 'players') {
         supabase.from('players').select('*').order('name')
-          .then(({ data }) => { if (data) setPlayers(data) })
+          .then(({ data }) => { if (data) setPlayers([...data]) })
       } else if (table === 'availability_windows') {
         supabase.from('availability_windows').select('*, player:players(id,name,ntrp,email,phone)')
           .then(({ data }) => {
             if (data) {
-              setMyWindows(data.filter(x => x.player_id === userId))
-              setAllWindows(data.filter(x => x.player_id !== userId))
+              setMyWindows([...data.filter(x => x.player_id === userId)])
+              setAllWindows([...data.filter(x => x.player_id !== userId)])
             }
           })
       }
