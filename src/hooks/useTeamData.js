@@ -72,7 +72,10 @@ export function useTeamData(session) {
       if (!tid) { console.warn('[rt] no teamId, skipping refresh'); return }
       if (table === 'responses') {
         supabase.from('responses').select('*').eq('team_id', tid)
-          .then(({ data }) => { if (data) setResponses(data) })
+          .then(({ data, error }) => {
+            console.log('[rt] responses fetch:', data?.length, 'rows, error:', error?.message)
+            if (data) setResponses(data)
+          })
       } else if (table === 'designations') {
         supabase.from('designations').select('*').eq('team_id', tid)
           .then(({ data }) => { if (data) setDesignations(data) })
