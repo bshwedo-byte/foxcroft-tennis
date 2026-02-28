@@ -97,14 +97,24 @@ export function useTeamData(session) {
 
   const saveWindow = async (windowData) => {
     const isNew = !windowData.id || String(windowData.id).startsWith('my-')
-    const { id: _id, player: _p, ...rest } = windowData
+    // Strip client-only fields and ensure snake_case for DB
+    const { id: _id, player: _p, startTime: _st, endTime: _et, matchType: _mt, ...rest } = windowData
+    // Ensure snake_case fields (form uses snake_case but guard against camelCase leaking in)
+    const dbRow = {
+      ...rest,
+      start_time: windowData.start_time || windowData.startTime,
+      end_time: windowData.end_time || windowData.endTime,
+      match_type: windowData.match_type || windowData.matchType,
+    }
     if (isNew) {
-      const { data } = await supabase.from('availability_windows')
-        .insert({ ...rest, player_id: userId }).select('*, player:players(id,name,ntrp,email,phone)').single()
+      const { data, error } = await supabase.from('availability_windows')
+        .insert({ ...dbRow, player_id: userId }).select('*, player:players(id,name,ntrp,email,phone)').single()
+      if (error) console.error('saveWindow error:', error)
       if (data) setMyWindows(prev => [...prev, data])
     } else {
-      const { data } = await supabase.from('availability_windows')
-        .update(rest).eq('id', windowData.id).select('*, player:players(id,name,ntrp,email,phone)').single()
+      const { data, error } = await supabase.from('availability_windows')
+        .update(dbRow).eq('id', windowData.id).select('*, player:players(id,name,ntrp,email,phone)').single()
+      if (error) console.error('saveWindow error:', error)
       if (data) setMyWindows(prev => prev.map(w => w.id === windowData.id ? data : w))
     }
   }
