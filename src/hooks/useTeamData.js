@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 export function useTeamData(session) {
@@ -13,6 +13,27 @@ export function useTeamData(session) {
   const [loading, setLoading] = useState(true)
 
   const userId = session?.user?.id
+  const teamIdRef = useRef(null)
+
+  const fetchAll = useCallback(async (tid, uid) => {
+    const [
+      { data: p }, { data: r }, { data: d }, { data: wd }, { data: w }, { data: j }
+    ] = await Promise.all([
+      supabase.from('players').select('*').order('name'),
+      supabase.from('responses').select('*').eq('team_id', tid),
+      supabase.from('designations').select('*').eq('team_id', tid),
+      supabase.from('week_details').select('*').eq('team_id', tid),
+      supabase.from('availability_windows').select('*, player:players(id,name,ntrp,email,phone)'),
+      supabase.from('session_joins').select('*, player:players(id,name,ntrp,email,phone)'),
+    ])
+    setPlayers(p || [])
+    setResponses(r || [])
+    setDesignations(d || [])
+    setWeekDetails(wd || [])
+    setMyWindows((w || []).filter(x => x.player_id === uid))
+    setAllWindows((w || []).filter(x => x.player_id !== uid))
+    setJoins(j || [])
+  }, [])
 
   const loadAll = useCallback(async () => {
     if (!userId) return
@@ -28,106 +49,62 @@ export function useTeamData(session) {
       await supabase.from('team_members').insert({ team_id: tid, player_id: userId })
     }
     setTeamId(tid)
+    teamIdRef.current = tid
 
-    const [
-      { data: p }, { data: r }, { data: d }, { data: wd }, { data: w }, { data: j }
-    ] = await Promise.all([
-      supabase.from('players').select('*').order('name'),
-      supabase.from('responses').select('*').eq('team_id', tid),
-      supabase.from('designations').select('*').eq('team_id', tid),
-      supabase.from('week_details').select('*').eq('team_id', tid),
-      supabase.from('availability_windows').select('*, player:players(id,name,ntrp,email,phone)'),
-      supabase.from('session_joins').select('*, player:players(id,name,ntrp,email,phone)'),
-    ])
-
-    setPlayers(p || [])
-    setResponses(r || [])
-    setDesignations(d || [])
-    setWeekDetails(wd || [])
-    setMyWindows((w || []).filter(x => x.player_id === userId))
-    setAllWindows((w || []).filter(x => x.player_id !== userId))
-    setJoins(j || [])
+    await fetchAll(tid, userId)
     setLoading(false)
-  }, [userId])
+  }, [userId, fetchAll])
 
-  // Initial load + real-time subscriptions
   useEffect(() => {
     loadAll()
 
-    // For responses, designations, and week_details we do a targeted re-fetch
-    // rather than piecing together partial payloads, to avoid team_id filtering issues
-    const refreshResponses = async (tid) => {
-      const { data } = await supabase.from('responses').select('*').eq('team_id', tid)
-      if (data) setResponses(data)
+    // Simple approach: re-fetch the relevant table whenever anything changes
+    // teamIdRef.current is always up to date since it's a ref
+    const refresh = (table) => {
+      const tid = teamIdRef.current
+      if (!tid) return
+      if (table === 'responses') {
+        supabase.from('responses').select('*').eq('team_id', tid)
+          .then(({ data }) => { if (data) setResponses(data) })
+      } else if (table === 'designations') {
+        supabase.from('designations').select('*').eq('team_id', tid)
+          .then(({ data }) => { if (data) setDesignations(data) })
+      } else if (table === 'week_details') {
+        supabase.from('week_details').select('*').eq('team_id', tid)
+          .then(({ data }) => { if (data) setWeekDetails(data) })
+      } else if (table === 'session_joins') {
+        supabase.from('session_joins').select('*, player:players(id,name,ntrp,email,phone)')
+          .then(({ data }) => { if (data) setJoins(data) })
+      } else if (table === 'players') {
+        supabase.from('players').select('*').order('name')
+          .then(({ data }) => { if (data) setPlayers(data) })
+      } else if (table === 'availability_windows') {
+        supabase.from('availability_windows').select('*, player:players(id,name,ntrp,email,phone)')
+          .then(({ data }) => {
+            if (data) {
+              setMyWindows(data.filter(x => x.player_id === userId))
+              setAllWindows(data.filter(x => x.player_id !== userId))
+            }
+          })
+      }
     }
-    const refreshDesignations = async (tid) => {
-      const { data } = await supabase.from('designations').select('*').eq('team_id', tid)
-      if (data) setDesignations(data)
-    }
-    const refreshWeekDetails = async (tid) => {
-      const { data } = await supabase.from('week_details').select('*').eq('team_id', tid)
-      if (data) setWeekDetails(data)
-    }
 
-    // Use a ref-like approach: read teamId from state via closure won't work,
-    // so we store it in a local var updated by the channel
-    let currentTeamId = null
-    supabase.from('team_members').select('team_id').eq('player_id', userId).maybeSingle()
-      .then(({ data }) => { currentTeamId = data?.team_id })
+    const subs = [
+      'responses', 'designations', 'week_details',
+      'session_joins', 'players', 'availability_windows'
+    ].map(table =>
+      supabase
+        .channel(`realtime-${table}-${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+          console.log(`[rt] ${table} changed:`, payload.eventType)
+          refresh(table)
+        })
+        .subscribe((status) => {
+          console.log(`[rt] ${table} subscription: ${status}`)
+        })
+    )
 
-    const responsesSub = supabase
-      .channel('responses-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'responses' }, () => {
-        if (currentTeamId) refreshResponses(currentTeamId)
-      })
-      .subscribe()
-
-    const designationsSub = supabase
-      .channel('designations-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'designations' }, () => {
-        if (currentTeamId) refreshDesignations(currentTeamId)
-      })
-      .subscribe()
-
-    const weekDetailsSub = supabase
-      .channel('week-details-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'week_details' }, () => {
-        if (currentTeamId) refreshWeekDetails(currentTeamId)
-      })
-      .subscribe()
-
-    const joinsSub = supabase
-      .channel('joins-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_joins' }, async payload => {
-        if (payload.eventType === 'INSERT') {
-          const { data } = await supabase.from('session_joins')
-            .select('*, player:players(id,name,ntrp,email,phone)')
-            .eq('id', payload.new.id).single()
-          if (data) setJoins(prev => [...prev.filter(j => j.id !== data.id), data])
-        } else if (payload.eventType === 'DELETE') {
-          setJoins(prev => prev.filter(j => j.id !== payload.old.id))
-        }
-      })
-      .subscribe()
-
-    const playersSub = supabase
-      .channel('players-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          setPlayers(prev => [...prev, payload.new].sort((a, b) => a.name.localeCompare(b.name)))
-        } else if (payload.eventType === 'UPDATE') {
-          setPlayers(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p))
-        }
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(responsesSub)
-      supabase.removeChannel(designationsSub)
-      supabase.removeChannel(weekDetailsSub)
-      supabase.removeChannel(joinsSub)
-      supabase.removeChannel(playersSub)
-    }
+    return () => { subs.forEach(s => supabase.removeChannel(s)) }
   }, [loadAll, userId])
 
   const updatePlayer = async (id, updates) => {
@@ -136,11 +113,8 @@ export function useTeamData(session) {
     return { error }
   }
 
-  // Create auth user + player row via edge function (uses service role key)
   const insertPlayer = async (playerForm) => {
-    const { data, error } = await supabase.functions.invoke('create-player', {
-      body: playerForm
-    })
+    const { data, error } = await supabase.functions.invoke('create-player', { body: playerForm })
     if (error) return { error }
     if (data?.error) return { error: { message: data.error } }
     if (data?.player) {

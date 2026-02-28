@@ -535,7 +535,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
             </div>
           </div>
           <div className="flex gap-1 bg-green-900 bg-opacity-60 rounded-lg p-1">
-            {[['respond', 'This Week'], ['availability', 'Play!'], ['schedule', 'My Schedule'], ['admin', 'Admin']].map(([v, l]) => (
+            {[['respond', 'This Week'], ['availability', 'Play!'], ['schedule', 'My Schedule'], ...(currentUser.is_admin ? [['admin', 'Admin']] : [])].map(([v, l]) => (
               <button key={v} onClick={() => setView(v)} className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-green-200 hover:text-white'}`}>{l}</button>
             ))}
           </div>
@@ -794,7 +794,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
         )}
 
         {/* ══════ ADMIN ══════ */}
-        {view === 'admin' && (
+        {view === 'admin' && currentUser.is_admin && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-sm p-5 text-white"><h2 className="text-xl font-bold mb-1">Team Captain Dashboard</h2><p className="text-sm opacity-90">Manage roster, responses, and match details</p></div>
 
