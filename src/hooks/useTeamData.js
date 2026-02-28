@@ -132,20 +132,49 @@ export function useTeamData(session) {
 
   const insertPlayer = async (playerForm) => {
     const { name, email, phone, ntrp, is_pro, is_admin } = playerForm
+
+    // Create auth user with default password
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email, password: 'tennis', options: { data: { name } }
     })
     if (authError) return { error: authError }
     const newUserId = authData?.user?.id
     if (!newUserId) return { error: { message: 'Could not create user account.' } }
-    await new Promise(r => setTimeout(r, 1000))
-    const { data: player, error: updateError } = await supabase
+
+    // Retry until the DB trigger creates the player row
+    let player = null
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 600))
+      const { data } = await supabase
+        .from('players')
+        .select('id').eq('id', newUserId).maybeSingle()
+      if (data) { break }
+    }
+
+    // Now update with full details
+    const { data: updated } = await supabase
       .from('players')
       .update({ name, phone: phone || null, ntrp: ntrp || '3.5', is_pro: !!is_pro, is_admin: !!is_admin })
-      .eq('id', newUserId).select().single()
-    if (updateError) return { error: updateError }
+      .eq('id', newUserId).select().maybeSingle()
+
+    if (updated) {
+      player = updated
+    } else {
+      // Trigger never fired - insert directly
+      const { data: inserted } = await supabase
+        .from('players')
+        .upsert({ id: newUserId, name, email, phone: phone || null, ntrp: ntrp || '3.5', is_pro: !!is_pro, is_admin: !!is_admin })
+        .select().maybeSingle()
+      player = inserted
+    }
+
+    // Add to team
     const tid = teamIdRef.current
-    if (tid) await supabase.from('team_members').insert({ team_id: tid, player_id: newUserId })
+    if (tid) {
+      await supabase.from('team_members')
+        .upsert({ team_id: tid, player_id: newUserId }, { onConflict: 'team_id,player_id' })
+    }
+
     if (player) setPlayers(prev => [...prev.filter(p => p.id !== player.id), player].sort((a, b) => a.name.localeCompare(b.name)))
     return { error: null }
   }
