@@ -37,28 +37,42 @@ export function useTeamData(session) {
 
   const loadAll = useCallback(async () => {
     if (!userId) return
+    console.log('[load] starting loadAll for userId:', userId?.slice(-6))
     setLoading(true)
 
-    let { data: membership } = await supabase
+    let { data: membership, error: memErr } = await supabase
       .from('team_members').select('team_id').eq('player_id', userId).maybeSingle()
+    console.log('[load] membership:', membership?.team_id?.slice(-6), 'err:', memErr?.message)
 
     let tid = membership?.team_id
     if (!tid) {
-      // Try to find an existing team to join rather than creating a new one
-      const { data: existingTeam } = await supabase.from('teams').select('id').order('created_at').limit(1).single()
+      console.log('[load] no membership, finding existing team...')
+      const { data: existingTeam, error: teamErr } = await supabase.from('teams').select('id').order('created_at').limit(1).single()
+      console.log('[load] existingTeam:', existingTeam?.id?.slice(-6), 'err:', teamErr?.message)
       if (existingTeam) {
         tid = existingTeam.id
-        await supabase.from('team_members').insert({ team_id: tid, player_id: userId }).onConflict('team_id,player_id').ignore()
+        const { error: joinErr } = await supabase.from('team_members').upsert({ team_id: tid, player_id: userId }, { onConflict: 'team_id,player_id' })
+        console.log('[load] joined team, err:', joinErr?.message)
       } else {
-        const { data: team } = await supabase.from('teams').insert({ name: 'Foxcroft Hills' }).select().single()
-        tid = team.id
-        await supabase.from('team_members').insert({ team_id: tid, player_id: userId })
+        const { data: team, error: createErr } = await supabase.from('teams').insert({ name: 'Foxcroft Hills' }).select().single()
+        console.log('[load] created team:', team?.id?.slice(-6), 'err:', createErr?.message)
+        tid = team?.id
+        if (tid) await supabase.from('team_members').insert({ team_id: tid, player_id: userId })
       }
     }
+
+    if (!tid) {
+      console.error('[load] FATAL: no team id, cannot load')
+      setLoading(false)
+      return
+    }
+
     setTeamId(tid)
     teamIdRef.current = tid
+    console.log('[load] fetching all data for team:', tid?.slice(-6))
 
     await fetchAll(tid, userId)
+    console.log('[load] done')
     setLoading(false)
   }, [userId, fetchAll])
 
