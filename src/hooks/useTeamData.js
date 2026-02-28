@@ -124,6 +124,19 @@ export function useTeamData(session) {
     return () => { subs.forEach(s => supabase.removeChannel(s)) }
   }, [loadAll, userId])
 
+  const deletePlayer = async (id) => {
+    // Remove from team_members, responses, designations, windows, joins
+    await supabase.from('team_members').delete().eq('player_id', id)
+    await supabase.from('responses').delete().eq('player_id', id)
+    await supabase.from('designations').delete().eq('player_id', id)
+    await supabase.from('availability_windows').delete().eq('player_id', id)
+    await supabase.from('session_joins').delete().eq('player_id', id)
+    // Remove player row (auth user remains but can't access the app)
+    const { error } = await supabase.from('players').delete().eq('id', id)
+    if (!error) setPlayers(prev => prev.filter(p => p.id !== id))
+    return { error }
+  }
+
   const updatePlayer = async (id, updates) => {
     const { data, error } = await supabase.from('players').update(updates).eq('id', id).select().single()
     if (!error) setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
@@ -250,7 +263,7 @@ export function useTeamData(session) {
     players, responses, designations, weekDetails,
     myWindows, allWindows, joins,
     teamId, loading, userId,
-    updatePlayer, insertPlayer,
+    updatePlayer, insertPlayer, deletePlayer,
     upsertResponse, upsertDesignation, upsertWeekDetail,
     saveWindow, deleteWindow, joinSession, leaveSession,
     reload: loadAll,

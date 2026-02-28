@@ -95,6 +95,25 @@ function ProfileModal({user,onSave,onClose}){
           <button onClick={save} disabled={saving} className="w-full py-3 bg-green-700 text-white rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50">{saving?'Saving...':'Save Changes'}</button>
         </div>
       </div>
+
+      {/* ══════ DELETE PLAYER MODAL ══════ */}
+      {deletePlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
+              <button onClick={async () => {
+                const pid = deletePlayerModal.id;
+                setDeletePlayerModal(null);
+                const { error } = await deletePlayer(pid);
+                if (error) alert('Error removing player: ' + error.message);
+              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -120,6 +139,25 @@ function PlayerEditModal({player,onSave,onClose,isNew}){
           <button onClick={save} disabled={saving} className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50">{saving?'Saving...':isNew?'Add Player':'Save Changes'}</button>
         </div>
       </div>
+
+      {/* ══════ DELETE PLAYER MODAL ══════ */}
+      {deletePlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
+              <button onClick={async () => {
+                const pid = deletePlayerModal.id;
+                setDeletePlayerModal(null);
+                const { error } = await deletePlayer(pid);
+                if (error) alert('Error removing player: ' + error.message);
+              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -155,6 +193,25 @@ function WindowFormModal({window:win,onSave,onClose,currentUser}){
           <button onClick={save} className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">{win?'Save Changes':'Add Window'}</button>
         </div>
       </div>
+
+      {/* ══════ DELETE PLAYER MODAL ══════ */}
+      {deletePlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
+              <button onClick={async () => {
+                const pid = deletePlayerModal.id;
+                setDeletePlayerModal(null);
+                const { error } = await deletePlayer(pid);
+                if (error) alert('Error removing player: ' + error.message);
+              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -165,7 +222,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
     players, responses, designations, weekDetails,
     myWindows, allWindows, joins,
     userId, loading,
-    updatePlayer, insertPlayer,
+    updatePlayer, insertPlayer, deletePlayer,
     upsertResponse, upsertDesignation, upsertWeekDetail,
     saveWindow, deleteWindow, joinSession, leaveSession,
   } = db;
@@ -195,6 +252,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
   const [quickActionMethod, setQuickActionMethod] = useState('email');
   const [quickActionFilters, setQuickActionFilters] = useState(['yes']);
   const [rosterFilter, setRosterFilter] = useState('all');
+  const [deletePlayerModal, setDeletePlayerModal] = useState(null);
   const [sortColumn, setSortColumn] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
 
@@ -907,7 +965,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                           <td className="px-3 py-3">{member.response === 'yes' && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Yes</span>}{member.response === 'maybe' && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">Maybe</span>}{member.response === 'ifNeeded' && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">If Needed</span>}{member.response === 'no' && <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">No</span>}{!member.response && <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Pending</span>}</td>
                           <td className="px-3 py-3"><a href={'tel:+1' + (member.phone || '').replace(/\D/g, '')} className="text-xs text-gray-700 hover:text-blue-600 whitespace-nowrap">{member.phone}</a></td>
                           <td className="px-3 py-3"><a href={'mailto:' + member.email} className="text-xs text-blue-600 hover:underline">{member.email}</a></td>
-                          <td className="px-3 py-3"><button onClick={() => setPlayerEditModal(member)} className="text-orange-400 hover:text-orange-600"><Edit2 size={16} /></button></td>
+                          <td className="px-3 py-3"><div className="flex items-center gap-2"><button onClick={() => setPlayerEditModal(member)} className="text-orange-400 hover:text-orange-600"><Edit2 size={16} /></button>{member.id !== userId && <button onClick={() => setDeletePlayerModal(member)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>}</div></td>
                         </tr>
                       );
                     })}
@@ -918,6 +976,25 @@ export default function TennisTeamApp({ session, onSignOut }) {
           </div>
         )}
       </div>
+
+      {/* ══════ DELETE PLAYER MODAL ══════ */}
+      {deletePlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
+              <button onClick={async () => {
+                const pid = deletePlayerModal.id;
+                setDeletePlayerModal(null);
+                const { error } = await deletePlayer(pid);
+                if (error) alert('Error removing player: ' + error.message);
+              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
