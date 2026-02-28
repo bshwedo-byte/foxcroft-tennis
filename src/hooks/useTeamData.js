@@ -139,16 +139,15 @@ export function useTeamData(session) {
   }, [loadAll, userId])
 
   const deletePlayer = async (id) => {
-    // Remove from team_members, responses, designations, windows, joins
-    await supabase.from('team_members').delete().eq('player_id', id)
-    await supabase.from('responses').delete().eq('player_id', id)
-    await supabase.from('designations').delete().eq('player_id', id)
-    await supabase.from('availability_windows').delete().eq('player_id', id)
-    await supabase.from('session_joins').delete().eq('player_id', id)
-    // Remove player row (auth user remains but can't access the app)
-    const { error } = await supabase.from('players').delete().eq('id', id)
-    if (!error) setPlayers(prev => prev.filter(p => p.id !== id))
-    return { error }
+    // Call edge function which uses service role to delete auth user too
+    const { data, error } = await supabase.functions.invoke('delete-player', {
+      body: { player_id: id }
+    })
+    if (error) return { error }
+    if (data?.error) return { error: { message: data.error } }
+    // Remove from local state immediately
+    setPlayers(prev => prev.filter(p => p.id !== id))
+    return { error: null }
   }
 
   const updatePlayer = async (id, updates) => {
