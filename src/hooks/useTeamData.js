@@ -60,9 +60,16 @@ export function useTeamData(session) {
 
     // Simple approach: re-fetch the relevant table whenever anything changes
     // teamIdRef.current is always up to date since it's a ref
-    const refresh = (table) => {
-      const tid = teamIdRef.current
-      if (!tid) return
+    const refresh = async (table) => {
+      let tid = teamIdRef.current
+      if (!tid) {
+        // Fallback: re-query if ref not set yet
+        const { data } = await supabase.from('team_members').select('team_id').eq('player_id', userId).maybeSingle()
+        tid = data?.team_id
+        if (tid) teamIdRef.current = tid
+      }
+      console.log(`[rt] refresh ${table}, tid=${tid}`)
+      if (!tid) { console.warn('[rt] no teamId, skipping refresh'); return }
       if (table === 'responses') {
         supabase.from('responses').select('*').eq('team_id', tid)
           .then(({ data }) => { if (data) setResponses(data) })
