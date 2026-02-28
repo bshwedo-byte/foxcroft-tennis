@@ -125,8 +125,9 @@ function PlayerEditModal({player,onSave,onClose,isNew}){
 }
 
 function WindowFormModal({window:win,onSave,onClose,currentUser}){
-  const[form,setForm]=useState(win?{...win,start_time:win.start_time||'',end_time:win.end_time||''}:{day:'Saturday',start_time:'',end_time:'',type:'match',match_type:'singles',ntrp_min:'',ntrp_max:'',practice_spots:2,lesson_instructor:'',lesson_spots:1,clinic_title:'',clinic_instructor:'',clinic_spots:4});
-  const save=()=>{if(!form.day||!form.start_time||!form.end_time){alert('Please fill in day and times.');return;}if(timeToMinutes(form.end_time)<=timeToMinutes(form.start_time)){alert('End time must be after start time.');return;}onSave(form);};
+  const getDefaultDate=()=>{const t=new Date();const d=t.getDay();const diff=d===6?0:(6-d);const sat=new Date(t);sat.setDate(t.getDate()+diff);return sat.toISOString().split('T')[0];};
+  const[form,setForm]=useState(win?{...win,session_date:win.session_date||getDefaultDate(),start_time:win.start_time||'',end_time:win.end_time||''}:{session_date:getDefaultDate(),start_time:'',end_time:'',type:'match',match_type:'singles',ntrp_min:'',ntrp_max:'',practice_spots:2,lesson_instructor:'',lesson_spots:1,clinic_title:'',clinic_instructor:'',clinic_spots:4});
+  const save=()=>{if(!form.session_date||!form.start_time||!form.end_time){alert('Please fill in date and times.');return;}if(timeToMinutes(form.end_time)<=timeToMinutes(form.start_time)){alert('End time must be after start time.');return;}onSave(form);};
   return(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -147,7 +148,7 @@ function WindowFormModal({window:win,onSave,onClose,currentUser}){
           {form.type==='practice'&&<div><label className="block text-sm font-medium text-gray-700 mb-1">Players needed</label><div className="flex gap-2">{[1,2,3,4,5,6].map(n=><button key={n} onClick={()=>setForm({...form,practice_spots:n})} className={`flex-1 py-2 rounded-lg border-2 text-sm font-semibold ${form.practice_spots===n?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-200 text-gray-700'}`}>{n}</button>)}</div></div>}
           {form.type==='lesson'&&<><div><label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label><input type="text" value={form.lesson_instructor} onChange={e=>setForm({...form,lesson_instructor:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"/></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Spots</label><div className="flex gap-2">{[1,2,3,4,5,6].map(n=><button key={n} onClick={()=>setForm({...form,lesson_spots:n})} className={`flex-1 py-2 rounded-lg border-2 text-sm font-semibold ${form.lesson_spots===n?'border-purple-500 bg-purple-50 text-purple-700':'border-gray-200 text-gray-700'}`}>{n}</button>)}</div></div></>}
           {form.type==='clinic'&&<><div><label className="block text-sm font-medium text-gray-700 mb-1">Clinic Title</label><input type="text" value={form.clinic_title} onChange={e=>setForm({...form,clinic_title:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"/></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label><input type="text" value={form.clinic_instructor} onChange={e=>setForm({...form,clinic_instructor:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"/></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Total spots</label><div className="flex gap-2">{[4,6,8,10,12].map(n=><button key={n} onClick={()=>setForm({...form,clinic_spots:n})} className={`flex-1 py-2 rounded-lg border-2 text-sm font-semibold ${form.clinic_spots===n?'border-orange-500 bg-orange-50 text-orange-700':'border-gray-200 text-gray-700'}`}>{n}</button>)}</div></div></>}
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Day</label><select value={form.day} onChange={e=>setForm({...form,day:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg">{['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'].map(d=><option key={d}>{d}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" value={form.session_date||''} onChange={e=>setForm({...form,session_date:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"/></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label><select value={form.start_time} onChange={e=>setForm({...form,start_time:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">Select start time</option>{TIME_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">End Time</label><select value={form.end_time} onChange={e=>setForm({...form,end_time:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">Select end time</option>{TIME_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">NTRP Range (optional)</label><div className="flex gap-3 items-center"><div className="flex-1"><label className="block text-xs text-gray-500 mb-1">Min</label><select value={form.ntrp_min} onChange={e=>setForm({...form,ntrp_min:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"><option value="">Any</option>{SKILL_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}</select></div><div className="text-gray-400 mt-4">—</div><div className="flex-1"><label className="block text-xs text-gray-500 mb-1">Max</label><select value={form.ntrp_max} onChange={e=>setForm({...form,ntrp_max:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"><option value="">Any</option>{SKILL_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}</select></div></div></div>
@@ -276,7 +277,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
   const getFilteredBrowseWindows = () => { let w = getAllWindowsForBrowse(); if (browseFilter !== 'all') w = w.filter(x => x.type === browseFilter); return w; };
 
   const calculateOverlap = (w1, w2) => {
-    if (w1.day !== w2.day) return 0;
+    const d1 = w1.session_date || w1.day; const d2 = w2.session_date || w2.day; if (d1 !== d2) return 0;
     const s = Math.max(timeToMinutes(w1.start_time), timeToMinutes(w2.start_time));
     const e = Math.min(timeToMinutes(w1.end_time), timeToMinutes(w2.end_time));
     return Math.max(0, (e - s) / 60);
@@ -396,8 +397,9 @@ export default function TennisTeamApp({ session, onSignOut }) {
     if (item.type === 'league') {
       return players.filter(p => selectedIds.includes(p.id) && p.id !== userId);
     }
-    const windowJoins = joins.filter(j => j.window_id === item.window_id);
-    return players.filter(p => windowJoins.some(j => j.player_id === p.id) && p.id !== userId);
+    const windowJoins = joins.filter(j => j.window_id === item.window_id && j.player_id !== userId);
+    // Use embedded player data from join, fall back to players array
+    return windowJoins.map(j => j.player || players.find(p => p.id === j.player_id)).filter(Boolean);
   };
 
   // My schedule items
@@ -418,18 +420,18 @@ export default function TennisTeamApp({ session, onSignOut }) {
     }
     myWindows.forEach(w => {
       const info = getSlotsInfo(w);
-      items.push({ type: w.type, label: getTypeLabel(w.type) + ' (Open Request)', day: w.day, start_time: w.start_time, end_time: w.end_time, joinedPlayers: joins.filter(j => j.window_id === w.id), info, date: null, window_id: w.id });
+      items.push({ type: w.type, label: getTypeLabel(w.type) + ' (Open Request)', session_date: w.session_date, day: w.session_date ? new Date(w.session_date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long'}) : w.day, start_time: w.start_time, end_time: w.end_time, joinedPlayers: joins.filter(j => j.window_id === w.id), info, date: null, window_id: w.id });
     });
     joins.filter(j => j.player_id === userId).forEach(j => {
       const w = allWindows.find(w => w.id === j.window_id);
       if (w) {
         const info = getSlotsInfo(w);
-        items.push({ type: w.type, label: getTypeLabel(w.type) + ' with ' + (w.player?.name || ''), day: w.day, start_time: j.join_start_time, end_time: j.join_end_time, info, status: info?.filled ? 'Confirmed' : 'Pending', date: null, window_id: w.id });
+        items.push({ type: w.type, label: getTypeLabel(w.type) + ' with ' + (w.player?.name || ''), session_date: w.session_date, day: w.session_date ? new Date(w.session_date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long'}) : w.day, start_time: j.join_start_time, end_time: j.join_end_time, info, status: info?.filled ? 'Confirmed' : 'Pending', date: null, window_id: w.id });
       }
     });
     return items.sort((a, b) => {
-      const aMs = a.date ? a.date.getTime() : (Date.now() + DAY_ORDER.indexOf(a.day) * 10000000 + timeToMinutes(a.start_time || '08:00') * 60000);
-      const bMs = b.date ? b.date.getTime() : (Date.now() + DAY_ORDER.indexOf(b.day) * 10000000 + timeToMinutes(b.start_time || '08:00') * 60000);
+      const aMs = a.date ? a.date.getTime() : a.session_date ? new Date(a.session_date+'T'+(a.start_time||'08:00')+':00').getTime() : Date.now();
+      const bMs = b.date ? b.date.getTime() : b.session_date ? new Date(b.session_date+'T'+(b.start_time||'08:00')+':00').getTime() : Date.now();
       return aMs - bMs;
     });
   };
@@ -626,7 +628,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                   <div key={w.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
                       <div className="flex items-center gap-2 mb-0.5">
-                        <div className="font-medium text-gray-900">{w.day}</div>
+                        <div className="font-medium text-gray-900">{w.session_date ? new Date(w.session_date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : (w.day||'')}</div>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getTypeBadgeColor(w.type)}`}>{w.type === 'match' ? (w.match_type === 'singles' ? 'Singles' : 'Doubles') : getTypeLabel(w.type)}</span>
                       </div>
                       <div className="text-sm text-gray-600">{formatTime(w.start_time)} – {formatTime(w.end_time)}</div>
@@ -693,7 +695,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                         </div>
                         <div className={`text-sm ${!w.qualified ? 'opacity-60' : ''}`}>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium mr-2 ${getTypeBadgeColor(w.type)}`}>{w.type === 'match' ? (w.match_type === 'singles' ? 'Singles' : 'Doubles') : getTypeLabel(w.type)}</span>
-                          <span className={`font-medium ${!w.qualified ? 'text-gray-500 italic' : 'text-gray-900'}`}>{w.day}</span>
+                          <span className={`font-medium ${!w.qualified ? 'text-gray-500 italic' : 'text-gray-900'}`}>{w.session_date ? new Date(w.session_date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : w.day}</span>
                           <span className={`ml-2 text-xs ${!w.qualified ? 'text-gray-400 italic' : 'text-gray-600'}`}>{formatTime(w.start_time)} – {formatTime(w.end_time)}</span>
                         </div>
                         {(w.ntrp_min || w.ntrp_max) && <div className={`text-xs mt-1 ${!w.qualified ? 'text-gray-400 italic' : 'text-gray-500'}`}>NTRP {w.ntrp_min || 'any'} – {w.ntrp_max || 'any'}</div>}
@@ -764,7 +766,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                           <div className={`font-semibold ${isAlt ? 'text-gray-500' : isOut ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</div>
                           {item.detail && <div className={`text-sm font-medium ${isAlt ? 'text-orange-400 italic' : 'text-orange-600'}`}>{item.detail}</div>}
                           <div className={`text-sm mt-0.5 ${isAlt ? 'text-gray-400 italic' : 'text-gray-500'}`}>
-                            {item.date ? formatShortDate(item.date) + ' · ' : ''}{item.day}{item.start_time ? ' · ' + formatTime(item.start_time) + ' – ' + formatTime(item.end_time) : ''}
+                            {item.date ? formatShortDate(item.date) + ' · ' : item.session_date ? new Date(item.session_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' : ''}{item.day}{item.start_time ? ' · ' + formatTime(item.start_time) + ' – ' + formatTime(item.end_time) : ''}
                           </div>
                           {item.address && <a href={mapsLink({ street: item.address, city: '', state: '', zip: '' })} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={`text-xs mt-0.5 flex items-center gap-1 underline ${isAlt ? 'text-gray-400 italic' : 'text-blue-500'}`}><MapPin size={11} />{item.address}</a>}
                           {canExpand && <div className={`text-xs mt-1 ${isAlt ? 'text-gray-400' : 'text-indigo-400'}`}>{isExpanded ? '▲ Hide' : '▼ Who\'s in'}</div>}

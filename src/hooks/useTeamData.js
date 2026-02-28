@@ -37,7 +37,7 @@ export function useTeamData(session) {
       supabase.from('designations').select('*').eq('team_id', tid),
       supabase.from('week_details').select('*').eq('team_id', tid),
       supabase.from('availability_windows').select('*, player:players(id,name,ntrp,email,phone)'),
-      supabase.from('session_joins').select('*'),
+      supabase.from('session_joins').select('*, player:players(id,name,ntrp,email,phone)'),
     ])
 
     setPlayers(p || [])
@@ -50,7 +50,59 @@ export function useTeamData(session) {
     setLoading(false)
   }, [userId])
 
-  useEffect(() => { loadAll() }, [loadAll])
+  // Initial load + real-time subscriptions
+  useEffect(() => {
+    loadAll()
+
+    const responsesSub = supabase
+      .channel('responses-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'responses' }, payload => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          setResponses(prev => {
+            const filtered = prev.filter(r =>
+              !(r.player_id === payload.new.player_id &&
+                r.week_start === payload.new.week_start &&
+                r.team_id === payload.new.team_id)
+            )
+            return [...filtered, payload.new]
+          })
+        } else if (payload.eventType === 'DELETE') {
+          setResponses(prev => prev.filter(r => r.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+
+    const joinsSub = supabase
+      .channel('joins-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_joins' }, async payload => {
+        if (payload.eventType === 'INSERT') {
+          const { data } = await supabase.from('session_joins')
+            .select('*, player:players(id,name,ntrp,email,phone)')
+            .eq('id', payload.new.id).single()
+          if (data) setJoins(prev => [...prev.filter(j => j.id !== data.id), data])
+        } else if (payload.eventType === 'DELETE') {
+          setJoins(prev => prev.filter(j => j.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+
+    const playersSub = supabase
+      .channel('players-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          setPlayers(prev => [...prev, payload.new].sort((a, b) => a.name.localeCompare(b.name)))
+        } else if (payload.eventType === 'UPDATE') {
+          setPlayers(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(responsesSub)
+      supabase.removeChannel(joinsSub)
+      supabase.removeChannel(playersSub)
+    }
+  }, [loadAll])
 
   const updatePlayer = async (id, updates) => {
     const { data, error } = await supabase.from('players').update(updates).eq('id', id).select().single()
@@ -58,10 +110,18 @@ export function useTeamData(session) {
     return { error }
   }
 
-  const insertPlayer = async (player) => {
-    const { data, error } = await supabase.from('players').insert(player).select().single()
-    if (!error) setPlayers(prev => [...prev, data])
-    return { error }
+  // Create auth user + player row via edge function (uses service role key)
+  const insertPlayer = async (playerForm) => {
+    const { data, error } = await supabase.functions.invoke('create-player', {
+      body: playerForm
+    })
+    if (error) return { error }
+    if (data?.error) return { error: { message: data.error } }
+    if (data?.player) {
+      setPlayers(prev => [...prev.filter(p => p.id !== data.player.id), data.player]
+        .sort((a, b) => a.name.localeCompare(b.name)))
+    }
+    return { error: null }
   }
 
   const upsertResponse = async (weekStart, response) => {
@@ -97,16 +157,17 @@ export function useTeamData(session) {
 
   const saveWindow = async (windowData) => {
     const isNew = !windowData.id || String(windowData.id).startsWith('my-')
-    // Strip client-only fields and ensure snake_case for DB
     const { id: _id, player: _p, created_at: _ca, ...dbRow } = windowData
     if (isNew) {
       const { data, error } = await supabase.from('availability_windows')
-        .insert({ ...dbRow, player_id: userId }).select('*, player:players(id,name,ntrp,email,phone)').single()
+        .insert({ ...dbRow, player_id: userId })
+        .select('*, player:players(id,name,ntrp,email,phone)').single()
       if (error) console.error('saveWindow error:', error)
       if (data) setMyWindows(prev => [...prev, data])
     } else {
       const { data, error } = await supabase.from('availability_windows')
-        .update(dbRow).eq('id', windowData.id).select('*, player:players(id,name,ntrp,email,phone)').single()
+        .update(dbRow).eq('id', windowData.id)
+        .select('*, player:players(id,name,ntrp,email,phone)').single()
       if (error) console.error('saveWindow error:', error)
       if (data) setMyWindows(prev => prev.map(w => w.id === windowData.id ? data : w))
     }
@@ -119,8 +180,10 @@ export function useTeamData(session) {
 
   const joinSession = async (windowId, startTime, endTime) => {
     const row = { window_id: windowId, player_id: userId, join_start_time: startTime, join_end_time: endTime }
-    await supabase.from('session_joins').upsert(row, { onConflict: 'window_id,player_id' })
-    setJoins(prev => [...prev.filter(j => !(j.window_id === windowId && j.player_id === userId)), row])
+    const { data } = await supabase.from('session_joins')
+      .upsert(row, { onConflict: 'window_id,player_id' })
+      .select('*, player:players(id,name,ntrp,email,phone)').single()
+    setJoins(prev => [...prev.filter(j => !(j.window_id === windowId && j.player_id === userId)), data || row])
   }
 
   const leaveSession = async (windowId) => {
