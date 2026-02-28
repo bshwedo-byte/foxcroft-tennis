@@ -44,9 +44,16 @@ export function useTeamData(session) {
 
     let tid = membership?.team_id
     if (!tid) {
-      const { data: team } = await supabase.from('teams').insert({ name: 'Foxcroft Hills' }).select().single()
-      tid = team.id
-      await supabase.from('team_members').insert({ team_id: tid, player_id: userId })
+      // Try to find an existing team to join rather than creating a new one
+      const { data: existingTeam } = await supabase.from('teams').select('id').order('created_at').limit(1).single()
+      if (existingTeam) {
+        tid = existingTeam.id
+        await supabase.from('team_members').insert({ team_id: tid, player_id: userId }).onConflict('team_id,player_id').ignore()
+      } else {
+        const { data: team } = await supabase.from('teams').insert({ name: 'Foxcroft Hills' }).select().single()
+        tid = team.id
+        await supabase.from('team_members').insert({ team_id: tid, player_id: userId })
+      }
     }
     setTeamId(tid)
     teamIdRef.current = tid
