@@ -206,24 +206,6 @@ function ProfileModal({user,onSave,onClose}){
         </div>
       </div>
 
-      {/* ══════ DELETE PLAYER MODAL ══════ */}
-      {deletePlayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
-              <button onClick={async () => {
-                const pid = deletePlayerModal.id;
-                setDeletePlayerModal(null);
-                const { error } = await deletePlayer(pid);
-                if (error) alert('Error removing player: ' + error.message);
-              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -250,24 +232,6 @@ function PlayerEditModal({player,onSave,onClose,isNew}){
         </div>
       </div>
 
-      {/* ══════ DELETE PLAYER MODAL ══════ */}
-      {deletePlayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
-              <button onClick={async () => {
-                const pid = deletePlayerModal.id;
-                setDeletePlayerModal(null);
-                const { error } = await deletePlayer(pid);
-                if (error) alert('Error removing player: ' + error.message);
-              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -304,24 +268,6 @@ function WindowFormModal({window:win,onSave,onClose,currentUser}){
         </div>
       </div>
 
-      {/* ══════ DELETE PLAYER MODAL ══════ */}
-      {deletePlayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Player</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to remove <span className="font-semibold">{deletePlayerModal.name}</span> from the roster?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeletePlayerModal(null)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">Cancel</button>
-              <button onClick={async () => {
-                const pid = deletePlayerModal.id;
-                setDeletePlayerModal(null);
-                const { error } = await deletePlayer(pid);
-                if (error) alert('Error removing player: ' + error.message);
-              }} className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

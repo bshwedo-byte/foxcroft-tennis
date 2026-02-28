@@ -139,13 +139,17 @@ export function useTeamData(session) {
   }, [loadAll, userId])
 
   const deletePlayer = async (id) => {
-    const { data, error } = await supabase.functions.invoke('delete-player', {
-      body: { player_id: id }
-    })
-    if (error) return { error }
-    if (data?.error) return { error: { message: data.error } }
-    setPlayers(prev => prev.filter(p => p.id !== id))
-    return { error: null }
+    // Delete all related data (auth user deletion requires edge function - done separately)
+    await supabase.from('session_joins').delete().eq('player_id', id)
+    await supabase.from('availability_windows').delete().eq('player_id', id)
+    await supabase.from('designations').delete().eq('player_id', id)
+    await supabase.from('responses').delete().eq('player_id', id)
+    await supabase.from('team_members').delete().eq('player_id', id)
+    const { error } = await supabase.from('players').delete().eq('id', id)
+    if (!error) setPlayers(prev => prev.filter(p => p.id !== id))
+    // Also attempt edge function to remove auth user (best effort)
+    supabase.functions.invoke('delete-player', { body: { player_id: id } }).catch(() => {})
+    return { error }
   }
 
   const updatePlayer = async (id, updates) => {
