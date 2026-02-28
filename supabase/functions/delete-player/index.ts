@@ -15,36 +15,23 @@ serve(async (req) => {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-    const adminClient = createClient(
+    const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Verify the caller is an admin
-    const authHeader = req.headers.get('Authorization')
-    const { data: { user }, error: authErr } = await adminClient.auth.getUser(authHeader?.replace('Bearer ', '') || '')
-    if (authErr || !user) return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-    const { data: caller } = await adminClient.from('players').select('is_admin').eq('id', user.id).single()
-    if (!caller?.is_admin) return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-
-    // Delete all related data first
-    await adminClient.from('session_joins').delete().eq('player_id', player_id)
-    await adminClient.from('availability_windows').delete().eq('player_id', player_id)
-    await adminClient.from('designations').delete().eq('player_id', player_id)
-    await adminClient.from('responses').delete().eq('player_id', player_id)
-    await adminClient.from('team_members').delete().eq('player_id', player_id)
-    await adminClient.from('players').delete().eq('id', player_id)
+    // Delete related data then player row
+    await admin.from('session_joins').delete().eq('player_id', player_id)
+    await admin.from('availability_windows').delete().eq('player_id', player_id)
+    await admin.from('designations').delete().eq('player_id', player_id)
+    await admin.from('responses').delete().eq('player_id', player_id)
+    await admin.from('team_members').delete().eq('player_id', player_id)
+    await admin.from('players').delete().eq('id', player_id)
 
     // Delete auth user
-    const { error: deleteErr } = await adminClient.auth.admin.deleteUser(player_id)
-    if (deleteErr) {
-      // Player row already deleted, auth user may not exist (e.g. pending player) - that's ok
-      console.log('Auth delete note:', deleteErr.message)
-    }
+    const { error: deleteErr } = await admin.auth.admin.deleteUser(player_id)
+    if (deleteErr) console.log('Auth delete note:', deleteErr.message)
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }

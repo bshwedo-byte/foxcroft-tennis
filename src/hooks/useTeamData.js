@@ -139,13 +139,8 @@ export function useTeamData(session) {
   }, [loadAll, userId])
 
   const deletePlayer = async (id) => {
-    // Get current session token to pass to edge function
-    const { data: { session: currentSession } } = await supabase.auth.getSession()
-    const token = currentSession?.access_token
-    
     const { data, error } = await supabase.functions.invoke('delete-player', {
-      body: { player_id: id },
-      headers: { Authorization: `Bearer ${token}` }
+      body: { player_id: id }
     })
     if (error) return { error }
     if (data?.error) return { error: { message: data.error } }
