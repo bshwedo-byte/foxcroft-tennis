@@ -54,26 +54,50 @@ export function useTeamData(session) {
   useEffect(() => {
     loadAll()
 
+    // For responses, designations, and week_details we do a targeted re-fetch
+    // rather than piecing together partial payloads, to avoid team_id filtering issues
+    const refreshResponses = async (tid) => {
+      const { data } = await supabase.from('responses').select('*').eq('team_id', tid)
+      if (data) setResponses(data)
+    }
+    const refreshDesignations = async (tid) => {
+      const { data } = await supabase.from('designations').select('*').eq('team_id', tid)
+      if (data) setDesignations(data)
+    }
+    const refreshWeekDetails = async (tid) => {
+      const { data } = await supabase.from('week_details').select('*').eq('team_id', tid)
+      if (data) setWeekDetails(data)
+    }
+
+    // Use a ref-like approach: read teamId from state via closure won't work,
+    // so we store it in a local var updated by the channel
+    let currentTeamId = null
+    supabase.from('team_members').select('team_id').eq('player_id', userId).maybeSingle()
+      .then(({ data }) => { currentTeamId = data?.team_id })
+
     const responsesSub = supabase
-      .channel('responses-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'responses' }, payload => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          setResponses(prev => {
-            const filtered = prev.filter(r =>
-              !(r.player_id === payload.new.player_id &&
-                r.week_start === payload.new.week_start &&
-                r.team_id === payload.new.team_id)
-            )
-            return [...filtered, payload.new]
-          })
-        } else if (payload.eventType === 'DELETE') {
-          setResponses(prev => prev.filter(r => r.id !== payload.old.id))
-        }
+      .channel('responses-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'responses' }, () => {
+        if (currentTeamId) refreshResponses(currentTeamId)
+      })
+      .subscribe()
+
+    const designationsSub = supabase
+      .channel('designations-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'designations' }, () => {
+        if (currentTeamId) refreshDesignations(currentTeamId)
+      })
+      .subscribe()
+
+    const weekDetailsSub = supabase
+      .channel('week-details-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'week_details' }, () => {
+        if (currentTeamId) refreshWeekDetails(currentTeamId)
       })
       .subscribe()
 
     const joinsSub = supabase
-      .channel('joins-changes')
+      .channel('joins-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'session_joins' }, async payload => {
         if (payload.eventType === 'INSERT') {
           const { data } = await supabase.from('session_joins')
@@ -87,7 +111,7 @@ export function useTeamData(session) {
       .subscribe()
 
     const playersSub = supabase
-      .channel('players-changes')
+      .channel('players-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
         if (payload.eventType === 'INSERT') {
           setPlayers(prev => [...prev, payload.new].sort((a, b) => a.name.localeCompare(b.name)))
@@ -99,10 +123,12 @@ export function useTeamData(session) {
 
     return () => {
       supabase.removeChannel(responsesSub)
+      supabase.removeChannel(designationsSub)
+      supabase.removeChannel(weekDetailsSub)
       supabase.removeChannel(joinsSub)
       supabase.removeChannel(playersSub)
     }
-  }, [loadAll])
+  }, [loadAll, userId])
 
   const updatePlayer = async (id, updates) => {
     const { data, error } = await supabase.from('players').update(updates).eq('id', id).select().single()
