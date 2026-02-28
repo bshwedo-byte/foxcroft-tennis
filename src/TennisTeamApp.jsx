@@ -226,6 +226,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
   }, { yes: 0, maybe: 0, ifNeeded: 0, no: 0, noResponse: 0 });
 
   const myResponse = responses.find(r => r.player_id === userId && r.week_start === weekStart)?.response || null;
+  console.log('[app] responses count:', responses.length, 'weekStart:', weekStart, 'myResponse:', myResponse, 'counts:', JSON.stringify(rosterCounts));
 
   // Weather
   const fetchWeather = async (weekIdx) => {
