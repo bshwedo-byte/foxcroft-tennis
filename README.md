@@ -57,3 +57,4 @@ supabase functions deploy send-push
 As admin, use the Admin tab → Add Player to create accounts.
 Players receive a password reset email to set their own password.
 # foxcroft-tennis
+# foxcroft-tennis
