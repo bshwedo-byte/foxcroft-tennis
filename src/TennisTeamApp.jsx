@@ -57,11 +57,121 @@ function generateICS(items){
   return lines.filter(l=>l!=='').join('\r\n');
 }
 
-function AddressAutocomplete({value,onChange,placeholder}){
-  const[suggestions,setSuggestions]=useState([]);const[show,setShow]=useState(false);const[loading,setLoading]=useState(false);const debRef=useRef(null);
-  const fetch_=async(q)=>{if(q.length<2){setSuggestions([]);return;}setLoading(true);try{const box='&viewbox=-81.2,35.4,-80.6,35.0&bounded=1';const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8&countrycodes=us&addressdetails=1&dedupe=1${box}`,{headers:{'Accept-Language':'en','User-Agent':'FoxcroftTennisApp/1.0'}});const results=await r.json();setSuggestions(results.filter(s=>s.address));}catch(e){setSuggestions([]);}setLoading(false);};
-  const sel=(s)=>{const a=s.address||{};const houseNum=a.house_number||a.street_number||'';const road=a.road||a.street||a.pedestrian||'';let street=houseNum&&road?`${houseNum} ${road}`.trim():road||s.display_name.split(',')[0];onChange('street',street);onChange('city',a.city||a.town||a.village||a.suburb||'Charlotte');onChange('state',a.state||'NC');onChange('zip',a.postcode||'');setShow(false);setSuggestions([]);};
-  return(<div className="relative"><input type="text" value={value} onChange={e=>{onChange('street',e.target.value);setShow(true);clearTimeout(debRef.current);debRef.current=setTimeout(()=>fetch_(e.target.value),400);}} onFocus={()=>suggestions.length>0&&setShow(true)} onBlur={()=>setTimeout(()=>setShow(false),200)} placeholder={placeholder} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"/>{loading&&<div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</div>}{show&&suggestions.length>0&&<div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">{suggestions.map((s,i)=><button key={i} onMouseDown={e=>{e.preventDefault();sel(s);}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"><div className="flex items-start gap-2"><MapPin size={14} className="text-gray-400 mt-0.5 shrink-0"/><span className="text-gray-700">{s.display_name}</span></div></button>)}</div>}</div>);
+function AddressAutocomplete({value, onChange, placeholder}) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debRef = useRef(null);
+
+  const search = async (q) => {
+    if (q.length < 3) { setSuggestions([]); return; }
+    setLoading(true);
+    try {
+      // Use Nominatim with a broader search area for Charlotte NC region
+      const params = new URLSearchParams({
+        format: 'json', q, limit: '8', countrycodes: 'us',
+        addressdetails: '1', dedupe: '1',
+        viewbox: '-81.5,35.6,-80.4,34.8', bounded: '0'
+      });
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'FoxcroftTennisApp/1.0' }
+      });
+      const results = await r.json();
+
+      // Also try with "Charlotte NC" appended if query doesn't mention a city
+      const hasCityHint = /charlotte|nc|matthews|huntersville|concord|kannapolis/i.test(q);
+      let extra = [];
+      if (!hasCityHint && results.length < 3) {
+        const params2 = new URLSearchParams({
+          format: 'json', q: q + ' Charlotte NC', limit: '5', countrycodes: 'us',
+          addressdetails: '1', dedupe: '1'
+        });
+        const r2 = await fetch(`https://nominatim.openstreetmap.org/search?${params2}`, {
+          headers: { 'Accept-Language': 'en', 'User-Agent': 'FoxcroftTennisApp/1.0' }
+        });
+        extra = await r2.json();
+      }
+
+      // Merge and dedupe by place_id
+      const seen = new Set();
+      const merged = [...results, ...extra].filter(s => {
+        if (!s.address || seen.has(s.place_id)) return false;
+        seen.add(s.place_id);
+        return true;
+      });
+
+      // Sort: prefer results with house numbers
+      merged.sort((a, b) => {
+        const aHas = !!(a.address?.house_number || a.address?.street_number);
+        const bHas = !!(b.address?.house_number || b.address?.street_number);
+        return bHas - aHas;
+      });
+
+      setSuggestions(merged);
+    } catch(e) { setSuggestions([]); }
+    setLoading(false);
+  };
+
+  const sel = (s) => {
+    const a = s.address || {};
+    const num = a.house_number || a.street_number || '';
+    const road = a.road || a.street || a.pedestrian || a.path || '';
+    // If no house number, try to extract from display_name (e.g. "8601 Bain Rd, ...")
+    let street;
+    if (num && road) {
+      street = `${num} ${road}`;
+    } else {
+      // Try extracting "number name" pattern from the first part of display_name
+      const firstPart = s.display_name.split(',')[0].trim();
+      street = firstPart;
+    }
+    onChange('street', street);
+    onChange('city', a.city || a.town || a.village || a.suburb || a.county || 'Charlotte');
+    onChange('state', a.state || 'NC');
+    onChange('zip', a.postcode || '');
+    setShow(false);
+    setSuggestions([]);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text" value={value}
+        onChange={e => { onChange('street', e.target.value); setShow(true); clearTimeout(debRef.current); debRef.current = setTimeout(() => search(e.target.value), 400); }}
+        onFocus={() => suggestions.length > 0 && setShow(true)}
+        onBlur={() => setTimeout(() => setShow(false), 200)}
+        placeholder={placeholder || 'Search address...'}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+      />
+      {loading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</div>}
+      {show && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto">
+          {suggestions.map((s, i) => {
+            const a = s.address || {};
+            const num = a.house_number || a.street_number || '';
+            const road = a.road || a.street || a.pedestrian || '';
+            const firstLine = num && road ? `${num} ${road}` : s.display_name.split(',')[0];
+            const city = a.city || a.town || a.village || a.suburb || '';
+            const state = a.state || '';
+            const zip = a.postcode || '';
+            const secondLine = [city, state, zip].filter(Boolean).join(', ');
+            return (
+              <button key={i} onMouseDown={e => { e.preventDefault(); sel(s); }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
+                <div className="flex items-start gap-2">
+                  <MapPin size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-gray-900 font-medium">{firstLine}</div>
+                    {secondLine && <div className="text-gray-500 text-xs">{secondLine}</div>}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Toast({toasts}){return(<div className="fixed top-4 right-4 z-[100] space-y-2 max-w-xs">{toasts.map(t=><div key={t.id} className="bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg text-sm flex items-start gap-2"><span className="text-lg">🔔</span><span>{t.message}</span></div>)}</div>);}
