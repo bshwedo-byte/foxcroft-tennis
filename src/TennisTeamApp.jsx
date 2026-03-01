@@ -722,11 +722,16 @@ export default function TennisTeamApp({ session, onSignOut }) {
           <div className="bg-white rounded-xl shadow-sm p-4 mb-3">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">Are you playing?</h2>
             <div className="grid grid-cols-4 gap-2">
-              {[{ v: 'yes', icon: <Check size={18} />, label: 'Yes', sel: 'border-green-500 bg-green-50', txt: 'text-green-700', cnt: rosterCounts.yes }, { v: 'maybe', icon: <HelpCircle size={18} />, label: "Can't Say", sel: 'border-yellow-500 bg-yellow-50', txt: 'text-yellow-700', cnt: rosterCounts.maybe }, { v: 'ifNeeded', icon: <Users size={18} />, label: 'If Needed', sel: 'border-blue-500 bg-blue-50', txt: 'text-blue-700', cnt: rosterCounts.ifNeeded }, { v: 'no', icon: <X size={18} />, label: 'No', sel: 'border-red-500 bg-red-50', txt: 'text-red-700', cnt: rosterCounts.no }].map(({ v, icon, label, sel, txt, cnt }) => (
-                <button key={v} onClick={() => handleResponse(v)} className={`py-2.5 px-1 rounded-xl border-2 transition-all ${myResponse === v ? sel : 'border-gray-200'}`}>
-                  <div className={`mx-auto mb-1 w-fit ${myResponse === v ? txt : 'text-gray-400'}`}>{icon}</div>
-                  <div className={`text-xs font-semibold leading-tight ${myResponse === v ? txt : 'text-gray-700'}`}>{label}</div>
-                  <div className="text-xl font-bold text-gray-900 mt-0.5">{cnt}</div>
+              {[
+                { v: 'yes',      icon: <Check size={20} />,       label: 'Yes',       bg: 'bg-green-500',  selBg: 'bg-green-500',  unselBg: 'bg-green-100',  selTxt: 'text-white', unselTxt: 'text-green-600' },
+                { v: 'maybe',    icon: <HelpCircle size={20} />,  label: "Can't Say", bg: 'bg-yellow-400', selBg: 'bg-yellow-400', unselBg: 'bg-yellow-100', selTxt: 'text-white', unselTxt: 'text-yellow-600' },
+                { v: 'ifNeeded', icon: <Users size={20} />,       label: 'If Needed', bg: 'bg-blue-500',   selBg: 'bg-blue-500',   unselBg: 'bg-blue-100',   selTxt: 'text-white', unselTxt: 'text-blue-600' },
+                { v: 'no',       icon: <X size={20} />,           label: 'No',        bg: 'bg-red-500',    selBg: 'bg-red-500',    unselBg: 'bg-red-100',    selTxt: 'text-white', unselTxt: 'text-red-600' },
+              ].map(({ v, icon, label, selBg, unselBg, selTxt, unselTxt }) => (
+                <button key={v} onClick={() => handleResponse(v)}
+                  className={`py-3 px-1 rounded-xl transition-all flex flex-col items-center gap-1.5 ${myResponse === v ? selBg + ' shadow-md' : unselBg + ' hover:opacity-80'}`}>
+                  <div className={myResponse === v ? selTxt : unselTxt}>{icon}</div>
+                  <div className={`text-xs font-bold leading-tight text-center ${myResponse === v ? selTxt : unselTxt}`}>{label}</div>
                 </button>
               ))}
             </div>
@@ -734,8 +739,8 @@ export default function TennisTeamApp({ session, onSignOut }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-xl shadow-sm p-3"><div className="flex items-center gap-2"><div className="p-2 bg-green-100 rounded-lg"><TrendingUp size={18} className="text-green-600" /></div><div><div className="text-xl font-bold text-gray-900">{Math.round((rosterCounts.yes / Math.max(players.length, 1)) * 100)}%</div><div className="text-xs text-gray-600">Playing</div></div></div></div>
-            <div className="bg-white rounded-xl shadow-sm p-3"><div className="flex items-center gap-2"><div className="p-2 bg-blue-100 rounded-lg"><Clock size={18} className="text-blue-600" /></div><div><div className="text-xl font-bold text-gray-900">{rosterCounts.noResponse}</div><div className="text-xs text-gray-600">Pending</div></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-3"><div className="flex items-center gap-2"><div className="p-2 bg-green-100 rounded-lg"><TrendingUp size={18} className="text-green-600" /></div><div><div className="text-xl font-bold text-gray-900">{rosterCounts.yes + rosterCounts.ifNeeded}</div><div className="text-xs text-gray-600">Playing / If Needed</div></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-3"><div className="flex items-center gap-2"><div className="p-2 bg-blue-100 rounded-lg"><Clock size={18} className="text-blue-600" /></div><div><div className="text-xl font-bold text-gray-900">{rosterCounts.noResponse + rosterCounts.maybe}</div><div className="text-xs text-gray-600">Pending</div></div></div></div>
           </div>
         </>)}
 
@@ -953,25 +958,43 @@ export default function TennisTeamApp({ session, onSignOut }) {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm p-5">
-              <div className="flex items-center justify-between mb-4"><h3 className="font-semibold text-gray-900">Match Details</h3>{!editingDetails ? <button onClick={() => { setDraftDetails({ ...currentDetails }); setEditingDetails(true); }} className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Edit</button> : <div className="flex gap-2"><button onClick={() => setEditingDetails(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">Cancel</button><button onClick={saveDetails} className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Save</button></div>}</div>
-              {!editingDetails ? (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Bell size={18} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 font-medium uppercase">Subtitle</div><div className="text-sm text-gray-900">{currentDetails.subtitle || 'Not set'}</div></div></div>
-                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><MapPin size={18} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 font-medium uppercase">Location</div>{formatAddress(currentDetails) ? <a href={mapsLink(currentDetails)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">{formatAddress(currentDetails)}</a> : <div className="text-sm text-gray-900">Not set</div>}</div></div>
-                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Clock size={18} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 font-medium uppercase">Match Time</div><div className="text-sm text-gray-900">{currentDetails.start_time ? formatTime(currentDetails.start_time) + ' – ' + formatTime(currentDetails.end_time) : 'Not set'}</div></div></div>
+            {(() => {
+              const [detailsOpen, setDetailsOpen] = React.useState(false);
+              return (
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <button onClick={() => setDetailsOpen(o => !o)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
+                    <h3 className="font-semibold text-gray-900">Match Details</h3>
+                    <div className="flex items-center gap-2">
+                      {!detailsOpen && (currentDetails.subtitle || formatAddress(currentDetails)) && <span className="text-xs text-gray-500 truncate max-w-[160px]">{currentDetails.subtitle || formatAddress(currentDetails)}</span>}
+                      <ChevronDown size={16} className={`text-gray-400 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                  {detailsOpen && (
+                    <div className="px-4 pb-4 border-t border-gray-100">
+                      <div className="flex justify-end pt-3 mb-3">
+                        {!editingDetails ? <button onClick={() => { setDraftDetails({ ...currentDetails }); setEditingDetails(true); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Edit</button> : <div className="flex gap-2"><button onClick={() => setEditingDetails(false)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700">Cancel</button><button onClick={saveDetails} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Save</button></div>}
+                      </div>
+                      {!editingDetails ? (
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Bell size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Subtitle</div><div className="text-sm text-gray-900">{currentDetails.subtitle || 'Not set'}</div></div></div>
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><MapPin size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Location</div>{formatAddress(currentDetails) ? <a href={mapsLink(currentDetails)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">{formatAddress(currentDetails)}</a> : <div className="text-sm text-gray-900">Not set</div>}</div></div>
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Clock size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Match Time</div><div className="text-sm text-gray-900">{currentDetails.start_time ? formatTime(currentDetails.start_time) + ' – ' + formatTime(currentDetails.end_time) : 'Not set'}</div></div></div>
+                        </div>
+                      ) : draftDetails && (
+                        <div className="space-y-4">
+                          <div><label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label><input type="text" value={draftDetails.subtitle || ''} onChange={e => setDraftDetails({ ...draftDetails, subtitle: e.target.value })} placeholder="e.g. Home vs Carmel Valley" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+                          <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><AddressAutocomplete value={draftDetails.street || ''} onChange={(field, val) => setDraftDetails(prev => ({ ...prev, [field]: val }))} placeholder="Search for venue..." /></div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Start</label><select value={draftDetails.start_time || '08:00'} onChange={e => setDraftDetails({ ...draftDetails, start_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">End</label><select value={draftDetails.end_time || '10:30'} onChange={e => setDraftDetails({ ...draftDetails, end_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ) : draftDetails && (
-                <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label><input type="text" value={draftDetails.subtitle || ''} onChange={e => setDraftDetails({ ...draftDetails, subtitle: e.target.value })} placeholder="e.g. Home vs Carmel Valley" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><AddressAutocomplete value={draftDetails.street || ''} onChange={(field, val) => setDraftDetails(prev => ({ ...prev, [field]: val }))} placeholder="Search for venue..." /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Start</label><select value={draftDetails.start_time || '08:00'} onChange={e => setDraftDetails({ ...draftDetails, start_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">End</label><select value={draftDetails.end_time || '10:30'} onChange={e => setDraftDetails({ ...draftDetails, end_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-                  </div>
-                </div>
-              )}
-            </div>
+              );
+            })()}
 
             <div className="bg-white rounded-xl shadow-sm p-5">
               <h3 className="font-semibold text-gray-900 mb-4">Responses for {formatSaturdayDate(currentSaturday)}</h3>
@@ -1032,6 +1055,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
                       <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase"><SortBtn col="response" label="Response" /></th>
                       <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phone</th>
                       <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Team Rating</th>
                       <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Edit</th>
                     </tr>
                   </thead>
@@ -1053,6 +1077,14 @@ export default function TennisTeamApp({ session, onSignOut }) {
                           <td className="px-3 py-3">{member.response === 'yes' && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Yes</span>}{member.response === 'maybe' && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">Can't Say Yet</span>}{member.response === 'ifNeeded' && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">If Needed</span>}{member.response === 'no' && <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">No</span>}{!member.response && <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Pending</span>}</td>
                           <td className="px-3 py-3"><a href={'tel:+1' + (member.phone || '').replace(/\D/g, '')} className="text-xs text-gray-700 hover:text-blue-600 whitespace-nowrap">{member.phone}</a></td>
                           <td className="px-3 py-3"><a href={'mailto:' + member.email} className="text-xs text-blue-600 hover:underline">{member.email}</a></td>
+                          <td className="px-3 py-3">
+                            <div className="flex gap-0.5">
+                              {[1,2,3,4,5].map(star => (
+                                <button key={star} onClick={() => updatePlayer(member.id, { team_rating: member.team_rating === star ? null : star })}
+                                  className={`text-lg leading-none transition-colors ${(member.team_rating || 0) >= star ? 'text-yellow-400' : 'text-gray-200 hover:text-yellow-300'}`}>★</button>
+                              ))}
+                            </div>
+                          </td>
                           <td className="px-3 py-3"><div className="flex items-center gap-2"><button onClick={() => setPlayerEditModal(member)} className="text-orange-400 hover:text-orange-600"><Edit2 size={16} /></button>{member.id !== userId && <button onClick={() => setDeletePlayerModal(member)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>}</div></td>
                         </tr>
                       );
