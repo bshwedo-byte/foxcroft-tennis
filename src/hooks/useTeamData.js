@@ -302,42 +302,54 @@ export function useTeamData(session) {
   // Called from a button click - requests permission then subscribes
   const enablePush = async () => {
     try {
+      console.log('[push] enablePush start')
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         alert('Push notifications are not supported in this browser.')
         return false
       }
+      console.log('[push] permission:', Notification.permission)
       const permission = await Notification.requestPermission()
+      console.log('[push] permission result:', permission)
       if (permission !== 'granted') {
         alert('Please allow notifications in your browser settings to enable push notifications.')
         return false
       }
       const reg = await navigator.serviceWorker.ready
+      console.log('[push] SW ready, scope:', reg.scope)
       const existing = await reg.pushManager.getSubscription()
+      console.log('[push] existing sub:', existing ? existing.endpoint : 'none')
       if (existing) {
-        await savePushSubscription(existing)
+        const { error } = await savePushSubscription(existing)
+        console.log('[push] saved existing, error:', error)
         return true
       }
+      console.log('[push] subscribing with key:', VAPID_PUBLIC_KEY.slice(0,20) + '...')
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       })
-      await savePushSubscription(sub)
-      console.log('[push] subscribed successfully')
+      console.log('[push] subscribed:', sub.endpoint)
+      const { error } = await savePushSubscription(sub)
+      console.log('[push] saved new sub, error:', error)
       return true
     } catch (e) {
-      console.log('[push] enablePush error:', e.message)
+      console.log('[push] enablePush error:', e.message, e.stack)
+      alert('Push error: ' + e.message)
       return false
     }
   }
 
   const savePushSubscription = async (sub) => {
     const json = sub.toJSON()
-    await supabase.from('push_subscriptions').upsert({
+    console.log('[push] saving subscription for player:', userId, 'endpoint:', json.endpoint?.slice(0,40))
+    const result = await supabase.from('push_subscriptions').upsert({
       player_id: userId,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth
     }, { onConflict: 'player_id,endpoint' })
+    console.log('[push] upsert result:', JSON.stringify(result))
+    return result
   }
 
   const sendPush = async ({ playerIds, title, body, tag, url }) => {
