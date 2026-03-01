@@ -174,7 +174,7 @@ function AddressAutocomplete({value, onChange, placeholder}) {
 
 function Toast({toasts}){return(<div className="fixed top-4 right-4 z-[100] space-y-2 max-w-xs">{toasts.map(t=><div key={t.id} className="bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg text-sm flex items-start gap-2"><span className="text-lg">🔔</span><span>{t.message}</span></div>)}</div>);}
 
-function ProfileModal({user,onSave,onClose}){
+function ProfileModal({user,onSave,onClose,onEnablePush}){
   const[form,setForm]=useState({name:user.name||'',email:user.email||'',phone:user.phone||'',ntrp:user.ntrp||'3.5',password:'',passwordConfirm:''});
   const[error,setError]=useState('');const[saving,setSaving]=useState(false);
   const save=async()=>{
@@ -201,7 +201,7 @@ function ProfileModal({user,onSave,onClose}){
           </div>
           {error&&<div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
           <button onClick={async () => {
-            const ok = await enablePush()
+            const ok = await onEnablePush()
             if (ok) alert('✅ Push notifications enabled!')
           }} className="w-full py-2.5 border-2 border-green-700 text-green-700 rounded-lg font-semibold hover:bg-green-50 mb-2 flex items-center justify-center gap-2">🔔 Enable Push Notifications</button>
           <button onClick={save} disabled={saving} className="w-full py-3 bg-green-700 text-white rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50">{saving?'Saving...':'Save Changes'}</button>
@@ -631,7 +631,7 @@ function TennisTeamAppInner({ session, onSignOut }) {
       <Toast toasts={toasts} />
 
       {/* Modals */}
-      {showProfileModal && <ProfileModal user={currentUser} onSave={handleProfileSave} onClose={() => setShowProfileModal(false)} />}
+      {showProfileModal && <ProfileModal user={currentUser} onSave={handleProfileSave} onClose={() => setShowProfileModal(false)} onEnablePush={enablePush} />}
       {playerEditModal && <PlayerEditModal player={playerEditModal === 'new' ? null : playerEditModal} isNew={playerEditModal === 'new'} onSave={handlePlayerSave} onClose={() => setPlayerEditModal(null)} />}
       {editWindowModal && <WindowFormModal window={editWindowModal === 'new' ? null : editWindowModal} onSave={handleWindowSave} onClose={() => setEditWindowModal(null)} currentUser={currentUser} />}
 
