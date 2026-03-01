@@ -270,7 +270,20 @@ function WindowFormModal({window:win,onSave,onClose,currentUser}){
   );
 }
 
-export default function TennisTeamApp({ session, onSignOut }) {
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{padding:20,fontFamily:'monospace',background:'#fee',color:'#900',whiteSpace:'pre-wrap'}}>
+        <strong>Render Error:</strong>{"\n"}{this.state.error.message}{"\n\n"}{this.state.error.stack}
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function TennisTeamAppInner({ session, onSignOut }) {
   const db = useTeamData(session);
   const {
     players, responses, designations, weekDetails,
@@ -1113,4 +1126,8 @@ export default function TennisTeamApp({ session, onSignOut }) {
       )}
     </div>
   );
+}
+
+export default function TennisTeamApp(props) {
+  return <ErrorBoundary><TennisTeamAppInner {...props} /></ErrorBoundary>;
 }
