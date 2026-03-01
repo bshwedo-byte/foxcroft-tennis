@@ -273,7 +273,7 @@ export function useTeamData(session) {
   }
 
   // ── Push notifications ──────────────────────────────────────────────────
-  const VAPID_PUBLIC_KEY = 'BLiK_y3xgarkfypVw8S6a_ihja1RiGNliE0ljXPYHefXBxAFcbo6enygLn4eMr2dhP0m37hqea03CG3LIwQIHEM'
+  const VAPID_PUBLIC_KEY = 'BIPgomTCBTNIR1wiCTnlBotYh6YtLcMumEV0DoQnv3Zr2apbWgCeNHr8Y9FUpQqFdp5bPKXSlqRA3csquScMX6Y'
 
   const urlBase64ToUint8Array = (base64String) => {
     const padding = '='.repeat((4 - base64String.length % 4) % 4)
