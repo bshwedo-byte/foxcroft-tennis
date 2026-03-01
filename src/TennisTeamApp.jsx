@@ -18,7 +18,7 @@ const TIME_OPTIONS=generateTimeOptions();
 const SATURDAYS=getUpcomingSaturdays(NUM_WEEKS);
 
 // Convert a JS Date to a YYYY-MM-DD string for DB week_start keys
-function toDateStr(d){return d.toISOString().split('T')[0];}
+function toDateStr(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const dd=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dd}`;}
 
 function mapsLink(d){const a=[d.street,d.city,d.state,d.zip].filter(Boolean).join(', ');if(!a)return null;return `https://maps.apple.com/?q=${encodeURIComponent(a)}`;}
 function initials(name){if(!name)return '?';return name.split(' ').map(n=>n[0]).join('');}
@@ -237,7 +237,7 @@ function PlayerEditModal({player,onSave,onClose,isNew}){
 }
 
 function WindowFormModal({window:win,onSave,onClose,currentUser}){
-  const getDefaultDate=()=>{const t=new Date();const d=t.getDay();const diff=d===6?0:(6-d);const sat=new Date(t);sat.setDate(t.getDate()+diff);return sat.toISOString().split('T')[0];};
+  const getDefaultDate=()=>{const t=new Date();const d=t.getDay();const diff=d===6?0:(6-d);const sat=new Date(t);sat.setDate(t.getDate()+diff);return toDateStr(sat);};
   const[form,setForm]=useState(win?{...win,session_date:win.session_date||getDefaultDate(),start_time:win.start_time||'',end_time:win.end_time||''}:{session_date:getDefaultDate(),start_time:'',end_time:'',type:'match',match_type:'singles',ntrp_min:'',ntrp_max:'',practice_spots:2,lesson_instructor:'',lesson_spots:1,clinic_title:'',clinic_instructor:'',clinic_spots:4});
   const save=()=>{if(!form.session_date||!form.start_time||!form.end_time){alert('Please fill in date and times.');return;}if(timeToMinutes(form.end_time)<=timeToMinutes(form.start_time)){alert('End time must be after start time.');return;}onSave(form);};
   return(
