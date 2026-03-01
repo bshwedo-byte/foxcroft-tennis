@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Users, TrendingUp, Clock, Check, X, HelpCircle, ChevronLeft, ChevronRight, Search, MapPin, Calendar, ArrowUpDown, Download, Mail, MessageSquare, Edit2, Plus, Trash2, LogOut } from 'lucide-react';
+import { Bell, Users, TrendingUp, Clock, Check, X, HelpCircle, ChevronLeft, ChevronRight, ChevronDown, Search, MapPin, Calendar, ArrowUpDown, Download, Mail, MessageSquare, Edit2, Plus, Trash2, LogOut } from 'lucide-react';
 import { useTeamData } from './hooks/useTeamData';
 
 const NUM_WEEKS = 26;
