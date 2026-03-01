@@ -290,6 +290,7 @@ function TennisTeamAppInner({ session, onSignOut }) {
     myWindows, allWindows, joins,
     userId, loading,
     updatePlayer, insertPlayer, deletePlayer,
+    registerPush, sendPush,
     upsertResponse, upsertDesignation, upsertWeekDetail,
     saveWindow, deleteWindow, joinSession, leaveSession,
   } = db;
@@ -322,8 +323,17 @@ function TennisTeamAppInner({ session, onSignOut }) {
   const [rosterFilter, setRosterFilter] = useState('all');
   const [deletePlayerModal, setDeletePlayerModal] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [pushMessage, setPushMessage] = useState('');
+  const [pushTarget, setPushTarget] = useState('all');
   const [sortColumn, setSortColumn] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
+
+  // Register push notifications once logged in
+  useEffect(() => {
+    if (userId && 'serviceWorker' in navigator) {
+      registerPush().catch(() => {})
+    }
+  }, [userId])
 
   const showToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000); };
 
@@ -429,6 +439,10 @@ function TennisTeamAppInner({ session, onSignOut }) {
     if (!joinModal) return;
     if (joinModal.type === 'match') { const dur = timeToMinutes(joinTimeEnd) - timeToMinutes(joinTimeStart); if (dur < 90) { alert('Time window must be at least 1.5 hours.'); return; } }
     joinSession(joinModal.id, joinTimeStart, joinTimeEnd);
+    // Notify the window owner that someone joined
+    if (joinModal.player_id && joinModal.player_id !== userId) {
+      sendPush({ playerIds: [joinModal.player_id], title: 'Foxcroft Hills Tennis', body: `${currentUser.name} joined your ${getTypeLabel(joinModal.type)} request!`, tag: 'join', url: '/' })
+    }
     // Build contact list: organizer + any others already joined
     const organizer = players.find(p => p.id === joinModal.player_id) || { name: joinModal.playerName, email: joinModal.playerEmail, phone: joinModal.playerPhone };
     const otherJoins = joins.filter(j => j.window_id === joinModal.id && j.player_id !== userId);
@@ -486,6 +500,12 @@ function TennisTeamAppInner({ session, onSignOut }) {
 
   // Designation toggle
   const setDesignation = async (playerId, type) => {
+    // Notify the player being designated
+    const player = players.find(p => p.id === playerId)
+    if (player && playerId !== userId) {
+      const msgs = { selected: '✅ You've been selected to play this Saturday!', alternate: '🔄 You're listed as an alternate for this Saturday.', notThisWeek: '❌ You're not needed this Saturday.' }
+      if (msgs[type]) sendPush({ playerIds: [playerId], title: 'Foxcroft Hills Tennis', body: msgs[type], tag: 'designation', url: '/' })
+    }
     const current = weekDesig.find(d => d.player_id === playerId)?.designation;
     await upsertDesignation(playerId, weekStart, current === type ? null : type);
   };
@@ -586,7 +606,15 @@ function TennisTeamAppInner({ session, onSignOut }) {
 
   const weekLabel = (i) => i === 0 ? 'This Saturday' : i === 1 ? 'Next Saturday' : formatShortDate(SATURDAYS[i]);
   const SortBtn = ({ col, label }) => (<button onClick={() => handleSort(col)} className="flex items-center gap-1 hover:text-gray-900 text-left">{label}{sortColumn === col && <ArrowUpDown size={12} />}</button>);
-  const saveDetails = async () => { await upsertWeekDetail(weekStart, draftDetails); setEditingDetails(false); };
+  const saveDetails = async () => {
+    await upsertWeekDetail(weekStart, draftDetails)
+    setEditingDetails(false)
+    // Notify all players of updated match details
+    const allIds = players.filter(p => p.id !== userId).map(p => p.id)
+    const addr = [draftDetails.street, draftDetails.city].filter(Boolean).join(', ')
+    const time = draftDetails.start_time ? formatTime(draftDetails.start_time) + '–' + formatTime(draftDetails.end_time) : ''
+    if (allIds.length) sendPush({ playerIds: allIds, title: '🎾 Match Details Updated', body: [addr, time].filter(Boolean).join(' · ') || 'Check the app for this week's match info.', tag: 'match-details', url: '/' })
+  };
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#1e4d2b' }}>
@@ -1036,6 +1064,34 @@ function TennisTeamAppInner({ session, onSignOut }) {
                 </div>
                 <button onClick={fireQuickAction} disabled={quickActionFilters.length === 0} className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2">
                   {quickActionMethod === 'email' ? '📧' : '📱'} {quickActionMethod === 'email' ? 'Open Email' : 'Open Messages'} to {getFilteredRoster().length} member{getFilteredRoster().length !== 1 ? 's' : ''}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">🔔 Push Notification</h3>
+              <div className="space-y-3">
+                <div><label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Message</label>
+                  <textarea value={pushMessage} onChange={e => setPushMessage(e.target.value)} placeholder="e.g. Court 3 is reserved — see you Saturday!" rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none" />
+                </div>
+                <div><label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Send To</label>
+                  <div className="flex gap-2">
+                    <button onClick={() => setPushTarget('all')} className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium ${pushTarget === 'all' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600'}`}>All Players</button>
+                    <button onClick={() => setPushTarget('yes')} className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium ${pushTarget === 'yes' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600'}`}>Playing Only</button>
+                    <button onClick={() => setPushTarget('noResponse')} className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium ${pushTarget === 'noResponse' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600'}`}>No Reply</button>
+                  </div>
+                </div>
+                <button onClick={async () => {
+                  if (!pushMessage.trim()) return;
+                  let ids;
+                  if (pushTarget === 'all') ids = players.filter(p => p.id !== userId).map(p => p.id);
+                  else if (pushTarget === 'yes') ids = weekRoster.filter(m => m.response === 'yes' || m.response === 'ifNeeded').map(m => m.id);
+                  else ids = weekRoster.filter(m => !m.response).map(m => m.id);
+                  await sendPush({ playerIds: ids, title: '🎾 Foxcroft Hills', body: pushMessage.trim(), tag: 'admin-push', url: '/' });
+                  setPushMessage('');
+                  showToast('Push sent to ' + ids.length + ' player' + (ids.length !== 1 ? 's' : ''));
+                }} disabled={!pushMessage.trim()} className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50">
+                  Send Push Notification
                 </button>
               </div>
             </div>

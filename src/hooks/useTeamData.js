@@ -272,11 +272,65 @@ export function useTeamData(session) {
     setJoins(prev => prev.filter(j => !(j.window_id === windowId && j.player_id === userId)))
   }
 
+  // ── Push notifications ──────────────────────────────────────────────────
+  const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
+
+  const urlBase64ToUint8Array = (base64String) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const rawData = window.atob(base64)
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
+  }
+
+  const registerPush = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') return null
+
+      const existing = await reg.pushManager.getSubscription()
+      if (existing) {
+        await savePushSubscription(existing)
+        return existing
+      }
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      })
+      await savePushSubscription(sub)
+      return sub
+    } catch (e) {
+      console.log('[push] register error:', e.message)
+      return null
+    }
+  }
+
+  const savePushSubscription = async (sub) => {
+    const json = sub.toJSON()
+    await supabase.from('push_subscriptions').upsert({
+      player_id: userId,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth
+    }, { onConflict: 'player_id,endpoint' })
+  }
+
+  const sendPush = async ({ playerIds, title, body, tag, url }) => {
+    await supabase.functions.invoke('send-push', {
+      body: { player_ids: playerIds, title, body, tag, url }
+    })
+  }
+
   return {
     players, responses, designations, weekDetails,
     myWindows, allWindows, joins,
     teamId, loading, userId,
     updatePlayer, insertPlayer, deletePlayer,
+    registerPush, sendPush,
     upsertResponse, upsertDesignation, upsertWeekDetail,
     saveWindow, deleteWindow, joinSession, leaveSession,
     reload: loadAll,

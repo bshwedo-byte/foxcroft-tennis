@@ -1,17 +1,40 @@
-self.addEventListener('push', function(event) {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Foxcroft Hills Tennis';
-  const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [100, 50, 100],
-    data: { url: data.url || '/' },
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
+// Foxcroft Hills Tennis - Service Worker
+const CACHE_NAME = 'foxcroft-v1';
+
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
 });
 
-self.addEventListener('notificationclick', function(event) {
-  event.notification.close();
-  event.waitUntil(clients.openWindow(event.notification.data.url || '/'));
+self.addEventListener('activate', (e) => {
+  e.waitUntil(clients.claim());
+});
+
+self.addEventListener('push', (e) => {
+  if (!e.data) return;
+  const data = e.data.json();
+  const options = {
+    body: data.body,
+    icon: '/foxcroft-logo.png',
+    badge: '/foxcroft-logo.png',
+    tag: data.tag || 'foxcroft',
+    renotify: true,
+    data: { url: data.url || '/' },
+    actions: data.actions || []
+  };
+  e.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || '/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
 });
