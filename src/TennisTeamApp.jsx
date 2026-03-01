@@ -200,6 +200,10 @@ function ProfileModal({user,onSave,onClose}){
             </div>
           </div>
           {error&&<div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
+          <button onClick={async () => {
+            const ok = await enablePush()
+            if (ok) alert('✅ Push notifications enabled!')
+          }} className="w-full py-2.5 border-2 border-green-700 text-green-700 rounded-lg font-semibold hover:bg-green-50 mb-2 flex items-center justify-center gap-2">🔔 Enable Push Notifications</button>
           <button onClick={save} disabled={saving} className="w-full py-3 bg-green-700 text-white rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50">{saving?'Saving...':'Save Changes'}</button>
         </div>
       </div>
@@ -290,7 +294,7 @@ function TennisTeamAppInner({ session, onSignOut }) {
     myWindows, allWindows, joins,
     userId, loading,
     updatePlayer, insertPlayer, deletePlayer,
-    registerPush, sendPush,
+    registerPush, enablePush, sendPush,
     upsertResponse, upsertDesignation, upsertWeekDetail,
     saveWindow, deleteWindow, joinSession, leaveSession,
   } = db;

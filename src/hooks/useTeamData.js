@@ -282,30 +282,51 @@ export function useTeamData(session) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
   }
 
+  // Called on load - just registers SW silently, no permission prompt
   const registerPush = async () => {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
-      const reg = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.register('/sw.js')
       await navigator.serviceWorker.ready
+      // If already subscribed, re-save in case it changed
+      const reg = await navigator.serviceWorker.ready
+      const existing = await reg.pushManager.getSubscription()
+      if (existing && Notification.permission === 'granted') {
+        await savePushSubscription(existing)
+      }
+    } catch (e) {
+      console.log('[push] SW register error:', e.message)
+    }
+  }
 
+  // Called from a button click - requests permission then subscribes
+  const enablePush = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push notifications are not supported in this browser.')
+        return false
+      }
       const permission = await Notification.requestPermission()
-      if (permission !== 'granted') return null
-
+      if (permission !== 'granted') {
+        alert('Please allow notifications in your browser settings to enable push notifications.')
+        return false
+      }
+      const reg = await navigator.serviceWorker.ready
       const existing = await reg.pushManager.getSubscription()
       if (existing) {
         await savePushSubscription(existing)
-        return existing
+        return true
       }
-
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       })
       await savePushSubscription(sub)
-      return sub
+      console.log('[push] subscribed successfully')
+      return true
     } catch (e) {
-      console.log('[push] register error:', e.message)
-      return null
+      console.log('[push] enablePush error:', e.message)
+      return false
     }
   }
 
@@ -330,7 +351,7 @@ export function useTeamData(session) {
     myWindows, allWindows, joins,
     teamId, loading, userId,
     updatePlayer, insertPlayer, deletePlayer,
-    registerPush, sendPush,
+    registerPush, enablePush, sendPush,
     upsertResponse, upsertDesignation, upsertWeekDetail,
     saveWindow, deleteWindow, joinSession, leaveSession,
     reload: loadAll,
