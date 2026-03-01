@@ -273,7 +273,7 @@ export function useTeamData(session) {
   }
 
   // ── Push notifications ──────────────────────────────────────────────────
-  const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  const VAPID_PUBLIC_KEY = 'GbofNdkc2R6XPltQP5lfeZomSxP2l0yqcelMYMxTLgDq1IGwR0cnDTN_0lO-qH7qa4tGKE4BPeZX6AFXCJPtLw'
 
   const urlBase64ToUint8Array = (base64String) => {
     const padding = '='.repeat((4 - base64String.length % 4) % 4)
