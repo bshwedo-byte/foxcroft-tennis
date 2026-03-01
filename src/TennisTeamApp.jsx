@@ -308,6 +308,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
   const [quickActionFilters, setQuickActionFilters] = useState(['yes']);
   const [rosterFilter, setRosterFilter] = useState('all');
   const [deletePlayerModal, setDeletePlayerModal] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [sortColumn, setSortColumn] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
 
@@ -649,7 +650,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center text-2xl">🎾</div>
+              <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0"><img src="/foxcroft-logo.png" alt="Foxcroft Hills" className="w-full h-full object-cover" /></div>
               <div><h1 className="text-xl font-bold text-white leading-tight">Foxcroft Hills</h1><p className="text-xs text-green-300">{players.length} members</p></div>
             </div>
             <div className="flex items-center gap-2">
@@ -723,15 +724,15 @@ export default function TennisTeamApp({ session, onSignOut }) {
             <h2 className="text-sm font-semibold text-gray-700 mb-3">Are you playing?</h2>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { v: 'yes',      icon: <Check size={20} />,       label: 'Yes',       bg: 'bg-green-500',  selBg: 'bg-green-500',  unselBg: 'bg-green-100',  selTxt: 'text-white', unselTxt: 'text-green-600' },
-                { v: 'maybe',    icon: <HelpCircle size={20} />,  label: "Can't Say", bg: 'bg-yellow-400', selBg: 'bg-yellow-400', unselBg: 'bg-yellow-100', selTxt: 'text-white', unselTxt: 'text-yellow-600' },
-                { v: 'ifNeeded', icon: <Users size={20} />,       label: 'If Needed', bg: 'bg-blue-500',   selBg: 'bg-blue-500',   unselBg: 'bg-blue-100',   selTxt: 'text-white', unselTxt: 'text-blue-600' },
-                { v: 'no',       icon: <X size={20} />,           label: 'No',        bg: 'bg-red-500',    selBg: 'bg-red-500',    unselBg: 'bg-red-100',    selTxt: 'text-white', unselTxt: 'text-red-600' },
-              ].map(({ v, icon, label, selBg, unselBg, selTxt, unselTxt }) => (
+                { v: 'yes',      icon: <Check size={20} />,       label: 'Yes',       selBg: 'bg-green-500',  selTxt: 'text-white' },
+                { v: 'maybe',    icon: <HelpCircle size={20} />,  label: "Can't Say", selBg: 'bg-yellow-400', selTxt: 'text-white' },
+                { v: 'ifNeeded', icon: <Users size={20} />,       label: 'If Needed', selBg: 'bg-blue-500',   selTxt: 'text-white' },
+                { v: 'no',       icon: <X size={20} />,           label: 'No',        selBg: 'bg-red-500',    selTxt: 'text-white' },
+              ].map(({ v, icon, label, selBg, selTxt }) => (
                 <button key={v} onClick={() => handleResponse(v)}
-                  className={`py-3 px-1 rounded-xl transition-all flex flex-col items-center gap-1.5 ${myResponse === v ? selBg + ' shadow-md' : unselBg + ' hover:opacity-80'}`}>
-                  <div className={myResponse === v ? selTxt : unselTxt}>{icon}</div>
-                  <div className={`text-xs font-bold leading-tight text-center ${myResponse === v ? selTxt : unselTxt}`}>{label}</div>
+                  className={`py-3 px-1 rounded-xl transition-all flex flex-col items-center gap-1.5 ${myResponse === v ? selBg + ' shadow-md' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                  <div className={myResponse === v ? selTxt : 'text-gray-500'}>{icon}</div>
+                  <div className={`text-xs font-bold leading-tight text-center ${myResponse === v ? selTxt : 'text-gray-600'}`}>{label}</div>
                 </button>
               ))}
             </div>
@@ -958,43 +959,38 @@ export default function TennisTeamApp({ session, onSignOut }) {
               </div>
             </div>
 
-            {(() => {
-              const [detailsOpen, setDetailsOpen] = React.useState(false);
-              return (
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                  <button onClick={() => setDetailsOpen(o => !o)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
-                    <h3 className="font-semibold text-gray-900">Match Details</h3>
-                    <div className="flex items-center gap-2">
-                      {!detailsOpen && (currentDetails.subtitle || formatAddress(currentDetails)) && <span className="text-xs text-gray-500 truncate max-w-[160px]">{currentDetails.subtitle || formatAddress(currentDetails)}</span>}
-                      <ChevronDown size={16} className={`text-gray-400 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <button onClick={() => setDetailsOpen(o => !o)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
+                <h3 className="font-semibold text-gray-900">Match Details</h3>
+                <div className="flex items-center gap-2">
+                  {!detailsOpen && (currentDetails.subtitle || formatAddress(currentDetails)) && <span className="text-xs text-gray-500 truncate max-w-[160px]">{currentDetails.subtitle || formatAddress(currentDetails)}</span>}
+                  <ChevronDown size={16} className={`text-gray-400 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+              {detailsOpen && (
+                <div className="px-4 pb-4 border-t border-gray-100">
+                  <div className="flex justify-end pt-3 mb-3">
+                    {!editingDetails ? <button onClick={() => { setDraftDetails({ ...currentDetails }); setEditingDetails(true); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Edit</button> : <div className="flex gap-2"><button onClick={() => setEditingDetails(false)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700">Cancel</button><button onClick={saveDetails} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Save</button></div>}
+                  </div>
+                  {!editingDetails ? (
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Bell size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Subtitle</div><div className="text-sm text-gray-900">{currentDetails.subtitle || 'Not set'}</div></div></div>
+                      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><MapPin size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Location</div>{formatAddress(currentDetails) ? <a href={mapsLink(currentDetails)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">{formatAddress(currentDetails)}</a> : <div className="text-sm text-gray-900">Not set</div>}</div></div>
+                      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Clock size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Match Time</div><div className="text-sm text-gray-900">{currentDetails.start_time ? formatTime(currentDetails.start_time) + ' – ' + formatTime(currentDetails.end_time) : 'Not set'}</div></div></div>
                     </div>
-                  </button>
-                  {detailsOpen && (
-                    <div className="px-4 pb-4 border-t border-gray-100">
-                      <div className="flex justify-end pt-3 mb-3">
-                        {!editingDetails ? <button onClick={() => { setDraftDetails({ ...currentDetails }); setEditingDetails(true); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Edit</button> : <div className="flex gap-2"><button onClick={() => setEditingDetails(false)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700">Cancel</button><button onClick={saveDetails} className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">Save</button></div>}
+                  ) : draftDetails && (
+                    <div className="space-y-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label><input type="text" value={draftDetails.subtitle || ''} onChange={e => setDraftDetails({ ...draftDetails, subtitle: e.target.value })} placeholder="e.g. Home vs Carmel Valley" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><AddressAutocomplete value={draftDetails.street || ''} onChange={(field, val) => setDraftDetails(prev => ({ ...prev, [field]: val }))} placeholder="Search for venue..." /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Start</label><select value={draftDetails.start_time || '08:00'} onChange={e => setDraftDetails({ ...draftDetails, start_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">End</label><select value={draftDetails.end_time || '10:30'} onChange={e => setDraftDetails({ ...draftDetails, end_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
                       </div>
-                      {!editingDetails ? (
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Bell size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Subtitle</div><div className="text-sm text-gray-900">{currentDetails.subtitle || 'Not set'}</div></div></div>
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><MapPin size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Location</div>{formatAddress(currentDetails) ? <a href={mapsLink(currentDetails)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">{formatAddress(currentDetails)}</a> : <div className="text-sm text-gray-900">Not set</div>}</div></div>
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"><Clock size={16} className="text-orange-500 mt-0.5 shrink-0" /><div><div className="text-xs text-gray-500 uppercase font-medium">Match Time</div><div className="text-sm text-gray-900">{currentDetails.start_time ? formatTime(currentDetails.start_time) + ' – ' + formatTime(currentDetails.end_time) : 'Not set'}</div></div></div>
-                        </div>
-                      ) : draftDetails && (
-                        <div className="space-y-4">
-                          <div><label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label><input type="text" value={draftDetails.subtitle || ''} onChange={e => setDraftDetails({ ...draftDetails, subtitle: e.target.value })} placeholder="e.g. Home vs Carmel Valley" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
-                          <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><AddressAutocomplete value={draftDetails.street || ''} onChange={(field, val) => setDraftDetails(prev => ({ ...prev, [field]: val }))} placeholder="Search for venue..." /></div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Start</label><select value={draftDetails.start_time || '08:00'} onChange={e => setDraftDetails({ ...draftDetails, start_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-                            <div><label className="block text-sm font-medium text-gray-700 mb-1">End</label><select value={draftDetails.end_time || '10:30'} onChange={e => setDraftDetails({ ...draftDetails, end_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
-              );
-            })()}
+              )}
+            </div>
 
             <div className="bg-white rounded-xl shadow-sm p-5">
               <h3 className="font-semibold text-gray-900 mb-4">Responses for {formatSaturdayDate(currentSaturday)}</h3>
