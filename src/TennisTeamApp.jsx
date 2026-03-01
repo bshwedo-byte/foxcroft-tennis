@@ -299,6 +299,7 @@ export default function TennisTeamApp({ session, onSignOut }) {
   const [showBrowseSchedules, setShowBrowseSchedules] = useState(false);
   const [browseFilter, setBrowseFilter] = useState('all');
   const [joinModal, setJoinModal] = useState(null);
+  const [joinSuccess, setJoinSuccess] = useState(null); // { organizer, others }
   const [joinTimeStart, setJoinTimeStart] = useState('');
   const [joinTimeEnd, setJoinTimeEnd] = useState('');
   const [editingDetails, setEditingDetails] = useState(false);
@@ -414,8 +415,13 @@ export default function TennisTeamApp({ session, onSignOut }) {
     if (!joinModal) return;
     if (joinModal.type === 'match') { const dur = timeToMinutes(joinTimeEnd) - timeToMinutes(joinTimeStart); if (dur < 90) { alert('Time window must be at least 1.5 hours.'); return; } }
     joinSession(joinModal.id, joinTimeStart, joinTimeEnd);
-    showToast('Joined ' + getTypeLabel(joinModal.type) + ' with ' + (joinModal.playerName || 'player'));
+    // Build contact list: organizer + any others already joined
+    const organizer = players.find(p => p.id === joinModal.player_id) || { name: joinModal.playerName, email: joinModal.playerEmail, phone: joinModal.playerPhone };
+    const otherJoins = joins.filter(j => j.window_id === joinModal.id && j.player_id !== userId);
+    const others = otherJoins.map(j => j.player || players.find(p => p.id === j.player_id)).filter(Boolean);
+    const allContacts = [organizer, ...others].filter(p => p && p.id !== userId);
     setJoinModal(null);
+    setJoinSuccess({ label: getTypeLabel(joinModal.type), contacts: allContacts });
   };
 
   const handleWithdraw = (windowId, sessionLabel, participantPlayers, isFull) => setWithdrawModal({ window_id: windowId, sessionLabel, players: participantPlayers, isFull });
@@ -678,58 +684,58 @@ export default function TennisTeamApp({ session, onSignOut }) {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-3 mb-4">
-            {weather[selectedWeek] === undefined ? (
-              <div className="text-center text-sm text-gray-400 animate-pulse">Fetching forecast...</div>
-            ) : weather[selectedWeek] === null ? (
-              <div className="text-center text-sm text-gray-400">Forecast unavailable for this date</div>
-            ) : (
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-3xl">{weather[selectedWeek].icon}</span>
-                <div>
-                  <div className="text-sm font-semibold text-gray-800">{formatSaturdayDate(currentSaturday)}</div>
-                  <div className="text-sm font-medium text-gray-600">{weather[selectedWeek].label}</div>
-                  <div className="text-sm text-gray-600">
-                    <span className="font-bold text-red-500">{weather[selectedWeek].hi}°</span>
-                    <span className="mx-1 text-gray-400">/</span>
-                    <span className="font-bold text-blue-500">{weather[selectedWeek].lo}°</span>
-                    <span className="ml-1 text-xs text-gray-400">F</span>
-                  </div>
+          {/* Location + Weather row */}
+          <div className="flex gap-2 mb-3">
+            {formatAddress(currentDetails) ? (
+              <div className="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+                <MapPin size={16} className="text-blue-600 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-blue-900">Location</div>
+                  <a href={mapsLink(currentDetails)} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline leading-tight block">
+                    {currentDetails.street}{currentDetails.city && ', ' + currentDetails.city}
+                  </a>
+                  {currentDetails.start_time && <div className="text-xs text-blue-600">{formatTime(currentDetails.start_time)}–{formatTime(currentDetails.end_time)}</div>}
                 </div>
               </div>
-            )}
+            ) : <div className="flex-1" />}
+            <div className="bg-white rounded-xl shadow-sm p-3 flex items-center gap-2 shrink-0">
+              {weather[selectedWeek] === undefined ? (
+                <div className="text-xs text-gray-400 animate-pulse">Loading...</div>
+              ) : weather[selectedWeek] === null ? (
+                <div className="text-xs text-gray-400">No forecast</div>
+              ) : (
+                <>
+                  <span className="text-2xl">{weather[selectedWeek].icon}</span>
+                  <div>
+                    <div className="text-xs font-medium text-gray-600">{weather[selectedWeek].label}</div>
+                    <div className="text-xs text-gray-600">
+                      <span className="font-bold text-red-500">{weather[selectedWeek].hi}°</span>
+                      <span className="mx-0.5 text-gray-400">/</span>
+                      <span className="font-bold text-blue-500">{weather[selectedWeek].lo}°F</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {formatAddress(currentDetails) && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-start gap-3">
-              <MapPin size={20} className="text-blue-600 mt-0.5 shrink-0" />
-              <div>
-                <div className="text-sm font-semibold text-blue-900">Location</div>
-                <a href={mapsLink(currentDetails)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 underline underline-offset-2">
-                  {currentDetails.street}{currentDetails.city && ', ' + currentDetails.city}{currentDetails.state && ', ' + currentDetails.state}{currentDetails.zip && ' ' + currentDetails.zip}
-                </a>
-                {currentDetails.start_time && <div className="text-xs text-blue-700 mt-0.5">{formatTime(currentDetails.start_time)} – {formatTime(currentDetails.end_time)}</div>}
-              </div>
-            </div>
-          )}
-
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Are you playing?</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {[{ v: 'yes', icon: <Check size={24} />, label: 'Yes', sel: 'border-green-500 bg-green-50', txt: 'text-green-700', cnt: rosterCounts.yes }, { v: 'maybe', icon: <HelpCircle size={24} />, label: "Can't Say Yet", sel: 'border-yellow-500 bg-yellow-50', txt: 'text-yellow-700', cnt: rosterCounts.maybe }, { v: 'ifNeeded', icon: <Users size={24} />, label: 'If Needed', sel: 'border-blue-500 bg-blue-50', txt: 'text-blue-700', cnt: rosterCounts.ifNeeded }, { v: 'no', icon: <X size={24} />, label: 'No', sel: 'border-red-500 bg-red-50', txt: 'text-red-700', cnt: rosterCounts.no }].map(({ v, icon, label, sel, txt, cnt }) => (
-                <button key={v} onClick={() => handleResponse(v)} className={`py-4 px-4 rounded-xl border-2 transition-all ${myResponse === v ? sel : 'border-gray-200'}`}>
-                  <div className={`mx-auto mb-2 w-fit ${myResponse === v ? txt : 'text-gray-400'}`}>{icon}</div>
-                  <div className={`font-semibold ${myResponse === v ? txt : 'text-gray-700'}`}>{label}</div>
-                  <div className="text-2xl font-bold text-gray-900 mt-1">{cnt}</div>
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-3">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">Are you playing?</h2>
+            <div className="grid grid-cols-4 gap-2">
+              {[{ v: 'yes', icon: <Check size={18} />, label: 'Yes', sel: 'border-green-500 bg-green-50', txt: 'text-green-700', cnt: rosterCounts.yes }, { v: 'maybe', icon: <HelpCircle size={18} />, label: "Can't Say", sel: 'border-yellow-500 bg-yellow-50', txt: 'text-yellow-700', cnt: rosterCounts.maybe }, { v: 'ifNeeded', icon: <Users size={18} />, label: 'If Needed', sel: 'border-blue-500 bg-blue-50', txt: 'text-blue-700', cnt: rosterCounts.ifNeeded }, { v: 'no', icon: <X size={18} />, label: 'No', sel: 'border-red-500 bg-red-50', txt: 'text-red-700', cnt: rosterCounts.no }].map(({ v, icon, label, sel, txt, cnt }) => (
+                <button key={v} onClick={() => handleResponse(v)} className={`py-2.5 px-1 rounded-xl border-2 transition-all ${myResponse === v ? sel : 'border-gray-200'}`}>
+                  <div className={`mx-auto mb-1 w-fit ${myResponse === v ? txt : 'text-gray-400'}`}>{icon}</div>
+                  <div className={`text-xs font-semibold leading-tight ${myResponse === v ? txt : 'text-gray-700'}`}>{label}</div>
+                  <div className="text-xl font-bold text-gray-900 mt-0.5">{cnt}</div>
                 </button>
               ))}
             </div>
-            {myResponse && <div className="mt-4 p-3 bg-gray-50 rounded-lg"><p className="text-sm text-gray-600 text-center">Your response: <span className="font-semibold text-gray-900">{{ yes: 'Yes', maybe: "Can't Say Yet", ifNeeded: 'If Needed', no: 'No' }[myResponse]}</span> <span className="text-xs text-gray-400">(tap again to remove)</span></p></div>}
+            {myResponse && <div className="mt-3 p-2 bg-gray-50 rounded-lg"><p className="text-xs text-gray-600 text-center">Responded: <span className="font-semibold text-gray-900">{{ yes: 'Yes', maybe: "Can't Say Yet", ifNeeded: 'If Needed', no: 'No' }[myResponse]}</span> <span className="text-gray-400">(tap again to remove)</span></p></div>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl shadow-sm p-4"><div className="flex items-center gap-3"><div className="p-3 bg-green-100 rounded-lg"><TrendingUp size={24} className="text-green-600" /></div><div><div className="text-2xl font-bold text-gray-900">{Math.round((rosterCounts.yes / Math.max(players.length, 1)) * 100)}%</div><div className="text-sm text-gray-600">Playing</div></div></div></div>
-            <div className="bg-white rounded-xl shadow-sm p-4"><div className="flex items-center gap-3"><div className="p-3 bg-blue-100 rounded-lg"><Clock size={24} className="text-blue-600" /></div><div><div className="text-2xl font-bold text-gray-900">{rosterCounts.noResponse}</div><div className="text-sm text-gray-600">Pending</div></div></div></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl shadow-sm p-3"><div className="flex items-center gap-2"><div className="p-2 bg-green-100 rounded-lg"><TrendingUp size={18} className="text-green-600" /></div><div><div className="text-xl font-bold text-gray-900">{Math.round((rosterCounts.yes / Math.max(players.length, 1)) * 100)}%</div><div className="text-xs text-gray-600">Playing</div></div></div></div>
+            <div className="bg-white rounded-xl shadow-sm p-3"><div className="flex items-center gap-2"><div className="p-2 bg-blue-100 rounded-lg"><Clock size={18} className="text-blue-600" /></div><div><div className="text-xl font-bold text-gray-900">{rosterCounts.noResponse}</div><div className="text-xs text-gray-600">Pending</div></div></div></div>
           </div>
         </>)}
 
@@ -764,16 +770,9 @@ export default function TennisTeamApp({ session, onSignOut }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {myWindows.length > 0 && (
-              <button onClick={() => { const m = findMatches(); if (m.strong.length > 0 || m.potential.length > 0) setShowMatchFinder(true); else alert('No matches found!'); }} className="bg-green-600 text-white rounded-xl p-4 hover:bg-green-700 text-center">
-                <Search size={20} className="mx-auto mb-1" /><div className="text-sm font-semibold">Find Matches</div><div className="text-xs opacity-90">1+ hour overlap</div>
-              </button>
-            )}
-            <button onClick={() => setShowBrowseSchedules(true)} className={`bg-purple-600 text-white rounded-xl p-4 hover:bg-purple-700 text-center ${myWindows.length === 0 ? 'col-span-2' : ''}`}>
-              <Users size={20} className="mx-auto mb-1" /><div className="text-sm font-semibold">Browse Requests</div><div className="text-xs opacity-90">View open sessions</div>
-            </button>
-          </div>
+          <button onClick={() => setShowBrowseSchedules(true)} className="w-full bg-purple-600 text-white rounded-xl p-4 hover:bg-purple-700 text-center">
+            <Users size={20} className="mx-auto mb-1" /><div className="text-sm font-semibold">Browse Open Requests</div><div className="text-xs opacity-90">View &amp; join open sessions</div>
+          </button>
 
           {showMatchFinder && (() => { const matches = findMatches(); return (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -848,6 +847,35 @@ export default function TennisTeamApp({ session, onSignOut }) {
                   {(() => { const dur = timeToMinutes(joinTimeEnd) - timeToMinutes(joinTimeStart); const hrs = Math.floor(dur / 60); const mins = dur % 60; return dur < 90 ? <p className="text-xs text-red-500 mb-3">Minimum 1.5 hours required</p> : <p className="text-xs text-green-600 mb-3">{hrs}h{mins > 0 ? ' ' + mins + 'm' : ''} selected</p>; })()}
                 </>)}
                 <button onClick={confirmJoin} className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700">Confirm &amp; Join</button>
+              </div>
+            </div>
+          )}
+
+          {joinSuccess && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+              <div className="bg-white rounded-xl p-6 max-w-sm w-full">
+                <div className="text-center mb-4">
+                  <div className="text-3xl mb-2">✅</div>
+                  <h3 className="font-bold text-gray-900">You're in!</h3>
+                  <p className="text-sm text-gray-500 mt-1">Joined {joinSuccess.label}</p>
+                </div>
+                {joinSuccess.contacts.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Let the others know:</p>
+                    <div className="space-y-2">
+                      {joinSuccess.contacts.map((p, i) => (
+                        <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-sm font-medium text-gray-800">{p.name}</span>
+                          <div className="flex gap-2">
+                            {p.email && <a href={'mailto:' + p.email} className="text-xs text-blue-600 underline flex items-center gap-0.5"><Mail size={11} /> Email</a>}
+                            {p.phone && <a href={'sms:+1' + p.phone.replace(/\D/g,'')} className="text-xs text-green-600 underline flex items-center gap-0.5"><MessageSquare size={11} /> Text</a>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button onClick={() => setJoinSuccess(null)} className="w-full py-2.5 bg-gray-900 text-white rounded-lg font-medium">Done</button>
               </div>
             </div>
           )}
