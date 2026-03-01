@@ -31,26 +31,24 @@ function timeToMinutes(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);ret
 
 function generateICS(items){
   const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//TennisTeamApp//EN','CALSCALE:GREGORIAN'];
+  const fmt=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}00`;
   items.forEach((item,idx)=>{
-    if(!item.date&&!item.day)return;
     const now=new Date();
     let start,end;
-    if(item.date){
+    if(item.session_date){
+      // Use exact date from session_date field
+      const[y,mo,d]=item.session_date.split('-').map(Number);
+      start=new Date(y,mo-1,d,8,0,0);
+      end=new Date(y,mo-1,d,10,0,0);
+      if(item.start_time){const[h,m]=item.start_time.split(':');start.setHours(parseInt(h),parseInt(m),0);}
+      if(item.end_time){const[h,m]=item.end_time.split(':');end.setHours(parseInt(h),parseInt(m),0);}
+    } else if(item.date){
       const d=new Date(item.date);
       if(item.start_time){const[h,m]=item.start_time.split(':');d.setHours(parseInt(h),parseInt(m),0);}
       start=new Date(d);end=new Date(d);
       if(item.end_time){const[h,m]=item.end_time.split(':');end.setHours(parseInt(h),parseInt(m),0);}
-      else{end.setHours(end.getHours()+2);}
-    } else {
-      const dayIdx=DAY_ORDER.indexOf(item.day);
-      const today=new Date();const diff=(dayIdx-today.getDay()+7)%7||7;
-      start=new Date(today);start.setDate(today.getDate()+diff);
-      if(item.start_time){const[h,m]=item.start_time.split(':');start.setHours(parseInt(h),parseInt(m),0);}
-      end=new Date(start);
-      if(item.end_time){const[h,m]=item.end_time.split(':');end.setHours(parseInt(h),parseInt(m),0);}
-      else{end.setHours(end.getHours()+2);}
-    }
-    const fmt=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}00`;
+      else end.setHours(end.getHours()+2);
+    } else return;
     lines.push('BEGIN:VEVENT',`UID:tennis-${idx}-${now.getTime()}@foxcrofthills`,`DTSTAMP:${fmt(now)}`,`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,`SUMMARY:${item.label}${item.detail?' - '+item.detail:''}`,item.address?`LOCATION:${item.address}`:'','END:VEVENT');
   });
   lines.push('END:VCALENDAR');
@@ -512,9 +510,16 @@ export default function TennisTeamApp({ session, onSignOut }) {
     if (item.type === 'league') {
       return players.filter(p => selectedIds.includes(p.id) && p.id !== userId);
     }
+    // Include all participants: people who joined + the organizer (window owner)
     const windowJoins = joins.filter(j => j.window_id === item.window_id && j.player_id !== userId);
-    // Use embedded player data from join, fall back to players array
-    return windowJoins.map(j => j.player || players.find(p => p.id === j.player_id)).filter(Boolean);
+    const joinedPlayers = windowJoins.map(j => j.player || players.find(p => p.id === j.player_id)).filter(Boolean);
+    // Find the organizer (owner of the window) if it's not the current user
+    const window = [...myWindows, ...allWindows].find(w => w.id === item.window_id);
+    const organizer = window && window.player_id !== userId ? (window.player || players.find(p => p.id === window.player_id)) : null;
+    // Merge and dedupe
+    const all = [...joinedPlayers];
+    if (organizer && !all.find(p => p.id === organizer.id)) all.unshift(organizer);
+    return all.filter(Boolean);
   };
 
   // My schedule items
@@ -871,28 +876,27 @@ export default function TennisTeamApp({ session, onSignOut }) {
                   const isFull = info?.filled || false;
                   return (
                     <div key={idx} className={`bg-white rounded-xl shadow-sm border-l-4 relative overflow-hidden ${isOut ? 'border-red-400 opacity-60' : isAlt ? 'border-yellow-400' : item.type === 'league' ? 'border-blue-500' : item.type === 'match' ? 'border-green-500' : item.type === 'practice' ? 'border-blue-400' : item.type === 'lesson' ? 'border-purple-500' : item.type === 'clinic' ? 'border-orange-500' : 'border-gray-300'}`}>
-                      <button className={`w-full text-left p-4 ${canExpand ? 'cursor-pointer' : 'cursor-default'}`} onClick={() => canExpand && setExpandedScheduleItem(isExpanded ? null : idx)}>
-                        <div className={isAlt ? 'italic' : ''}>
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getTypeBadgeColor(item.type === 'league' ? 'match' : item.type)}`}>{item.type === 'league' ? 'League' : getTypeLabel(item.type)}</span>
-                            {item.status && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${item.status === 'Selected' ? 'bg-green-100 text-green-700' : item.status === 'Alternate' ? 'bg-yellow-100 text-yellow-700' : item.status === 'Not This Week' ? 'bg-red-100 text-red-600' : item.status === 'Confirmed' || item.status === 'Joined' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{item.status}</span>}
-                            {info && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${info.filled ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{info.filled ? 'Confirmed' : 'Pending'} {info.total}/{info.needed}</span>}
+                      <div className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <button className={`flex-1 text-left ${canExpand ? 'cursor-pointer' : 'cursor-default'}`} onClick={() => canExpand && setExpandedScheduleItem(isExpanded ? null : idx)}>
+                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${getTypeBadgeColor(item.type === 'league' ? 'match' : item.type)}`}>{item.type === 'league' ? 'League' : getTypeLabel(item.type)}</span>
+                              {item.status && <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${item.status === 'Selected' ? 'bg-green-100 text-green-700' : item.status === 'Alternate' ? 'bg-yellow-100 text-yellow-700' : item.status === 'Not This Week' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>{item.status}</span>}
+                              {info && <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${info.filled ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{info.filled ? '✓' : '?'} {info.total}/{info.needed}</span>}
+                            </div>
+                            <div className={`font-semibold text-sm ${isAlt ? 'text-gray-500 italic' : isOut ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}{item.detail ? <span className="font-normal text-orange-600"> · {item.detail}</span> : ''}</div>
+                            <div className={`text-xs mt-0.5 ${isAlt ? 'text-gray-400 italic' : 'text-gray-500'}`}>
+                              {item.date ? formatShortDate(item.date) : item.session_date ? new Date(item.session_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}{item.start_time ? ' · ' + formatTime(item.start_time) + '–' + formatTime(item.end_time) : ''}
+                            </div>
+                            {item.address && <a href={mapsLink({ street: item.address, city: '', state: '', zip: '' })} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-blue-500 underline flex items-center gap-0.5 mt-0.5"><MapPin size={10} />{item.address}</a>}
+                            {canExpand && <div className={`text-xs mt-0.5 ${isAlt ? 'text-gray-400' : 'text-indigo-400'}`}>{isExpanded ? '▲ hide' : '▼ who\'s in'}</div>}
+                          </button>
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button onClick={() => { const emails = participants.map(p=>p.email).filter(Boolean); if(emails.length) window.location.href='mailto:'+emails.join(','); }} className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium"><Mail size={11} /> Email</button>
+                            <button onClick={() => { const nums = participants.map(p=>(p.phone||'').replace(/\D/g,'')).filter(Boolean); if(nums.length===1) window.location.href='sms:+1'+nums[0]; else if(nums.length>1) setSmsModal({numbers:nums,names:participants.map(p=>p.name)}); }} className="flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium"><MessageSquare size={11} /> Text</button>
+                            {item.window_id && <button onClick={() => handleWithdraw(item.window_id, item.label, participants, isFull)} className="flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium"><LogOut size={11} /> Withdraw</button>}
                           </div>
-                          <div className={`font-semibold ${isAlt ? 'text-gray-500' : isOut ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</div>
-                          {item.detail && <div className={`text-sm font-medium ${isAlt ? 'text-orange-400 italic' : 'text-orange-600'}`}>{item.detail}</div>}
-                          <div className={`text-sm mt-0.5 ${isAlt ? 'text-gray-400 italic' : 'text-gray-500'}`}>
-                            {item.date ? formatShortDate(item.date) + ' · ' : item.session_date ? new Date(item.session_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' : ''}{item.day}{item.start_time ? ' · ' + formatTime(item.start_time) + ' – ' + formatTime(item.end_time) : ''}
-                          </div>
-                          {item.address && <a href={mapsLink({ street: item.address, city: '', state: '', zip: '' })} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={`text-xs mt-0.5 flex items-center gap-1 underline ${isAlt ? 'text-gray-400 italic' : 'text-blue-500'}`}><MapPin size={11} />{item.address}</a>}
-                          {canExpand && <div className={`text-xs mt-1 ${isAlt ? 'text-gray-400' : 'text-indigo-400'}`}>{isExpanded ? '▲ Hide' : '▼ Who\'s in'}</div>}
                         </div>
-                      </button>
-                      <div className="px-4 pb-3 flex items-center gap-2 flex-wrap">
-                        {participants.length > 0 && (<>
-                          <button onClick={() => window.location.href = 'mailto:' + participants.map(p => p.email).join(',')} className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100"><Mail size={12} /> Email Group</button>
-                          <button onClick={() => { if (participants.length === 1) window.location.href = 'sms:+1' + participants[0].phone.replace(/\D/g, ''); else setSmsModal({ numbers: participants.map(p => p.phone.replace(/\D/g, '')), names: participants.map(p => p.name) }); }} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium hover:bg-green-100"><MessageSquare size={12} /> Text Group</button>
-                        </>)}
-                        {item.window_id && <button onClick={() => handleWithdraw(item.window_id, item.label, participants, isFull)} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"><LogOut size={12} /> Withdraw</button>}
                       </div>
                       {isExpanded && canExpand && (
                         <div className="px-4 pb-4 border-t border-gray-100 pt-3">
