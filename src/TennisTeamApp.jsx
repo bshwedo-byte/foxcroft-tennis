@@ -503,7 +503,7 @@ function TennisTeamAppInner({ session, onSignOut }) {
     // Notify the player being designated
     const player = players.find(p => p.id === playerId)
     if (player && playerId !== userId) {
-      const msgs = { selected: '✅ You've been selected to play this Saturday!', alternate: '🔄 You're listed as an alternate for this Saturday.', notThisWeek: '❌ You're not needed this Saturday.' }
+      const msgs = { selected: "\u2705 You've been selected to play this Saturday!", alternate: "\uD83D\uDD04 You're listed as an alternate for this Saturday.", notThisWeek: "\u274C You're not needed this Saturday." }
       if (msgs[type]) sendPush({ playerIds: [playerId], title: 'Foxcroft Hills Tennis', body: msgs[type], tag: 'designation', url: '/' })
     }
     const current = weekDesig.find(d => d.player_id === playerId)?.designation;
