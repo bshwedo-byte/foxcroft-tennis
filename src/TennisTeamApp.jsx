@@ -613,7 +613,7 @@ function TennisTeamAppInner({ session, onSignOut }) {
     const allIds = players.filter(p => p.id !== userId).map(p => p.id)
     const addr = [draftDetails.street, draftDetails.city].filter(Boolean).join(', ')
     const time = draftDetails.start_time ? formatTime(draftDetails.start_time) + '–' + formatTime(draftDetails.end_time) : ''
-    if (allIds.length) sendPush({ playerIds: allIds, title: '🎾 Match Details Updated', body: [addr, time].filter(Boolean).join(' · ') || 'Check the app for this week's match info.', tag: 'match-details', url: '/' })
+    if (allIds.length) sendPush({ playerIds: allIds, title: '🎾 Match Details Updated', body: [addr, time].filter(Boolean).join(' · ') || "Check the app for this week's match info.", tag: 'match-details', url: '/' })
   };
 
   if (loading) return (
