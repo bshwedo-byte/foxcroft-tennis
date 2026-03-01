@@ -148,7 +148,19 @@ export function useTeamData(session) {
     const { error } = await supabase.from('players').delete().eq('id', id)
     if (!error) setPlayers(prev => prev.filter(p => p.id !== id))
     // Edge function deletes the auth user using service role (key stays server-side)
-    await supabase.functions.invoke('delete-player', { body: { player_id: id } })
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+    const fnRes = await fetch(`${supabaseUrl}/functions/v1/delete-player`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+        'Authorization': `Bearer ${currentSession?.access_token || anonKey}`
+      },
+      body: JSON.stringify({ player_id: id })
+    })
+    console.log('[delete] edge fn status:', fnRes.status, await fnRes.text())
     return { error }
   }
 
