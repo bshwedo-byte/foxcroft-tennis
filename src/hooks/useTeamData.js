@@ -139,7 +139,7 @@ export function useTeamData(session) {
   }, [loadAll, userId])
 
   const deletePlayer = async (id) => {
-    // Delete all related data (auth user deletion requires edge function - done separately)
+    // Delete data rows client-side
     await supabase.from('session_joins').delete().eq('player_id', id)
     await supabase.from('availability_windows').delete().eq('player_id', id)
     await supabase.from('designations').delete().eq('player_id', id)
@@ -147,8 +147,8 @@ export function useTeamData(session) {
     await supabase.from('team_members').delete().eq('player_id', id)
     const { error } = await supabase.from('players').delete().eq('id', id)
     if (!error) setPlayers(prev => prev.filter(p => p.id !== id))
-    // Also attempt edge function to remove auth user (best effort)
-    supabase.functions.invoke('delete-player', { body: { player_id: id } }).catch(() => {})
+    // Edge function deletes the auth user using service role (key stays server-side)
+    await supabase.functions.invoke('delete-player', { body: { player_id: id } })
     return { error }
   }
 

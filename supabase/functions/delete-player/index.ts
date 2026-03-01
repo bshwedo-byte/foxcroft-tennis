@@ -15,23 +15,20 @@ serve(async (req) => {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
+    // Use service role - has full access, no auth needed from caller
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Delete related data then player row
     await admin.from('session_joins').delete().eq('player_id', player_id)
     await admin.from('availability_windows').delete().eq('player_id', player_id)
     await admin.from('designations').delete().eq('player_id', player_id)
     await admin.from('responses').delete().eq('player_id', player_id)
     await admin.from('team_members').delete().eq('player_id', player_id)
     await admin.from('players').delete().eq('id', player_id)
-
-    // Delete auth user
-    const { error: deleteErr } = await admin.auth.admin.deleteUser(player_id)
-    if (deleteErr) console.log('Auth delete note:', deleteErr.message)
+    await admin.auth.admin.deleteUser(player_id)
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
