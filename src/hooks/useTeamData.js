@@ -165,8 +165,8 @@ export function useTeamData(session) {
   }
 
   const updatePlayer = async (id, updates) => {
-    const { data, error } = await supabase.from('players').update(updates).eq('id', id).select().single()
-    if (!error) setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
+    const { data, error } = await supabase.from('players').update(updates).eq('id', id).select().maybeSingle()
+    if (!error) setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...(data || updates) } : p))
     return { error }
   }
 
